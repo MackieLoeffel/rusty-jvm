@@ -7,7 +7,7 @@ mod class_loader;
 use class_loader::ClassLoader;
 
 fn main() {
-    let classloader = ClassLoader::new("./assets");
+    let _classloader = ClassLoader::new("./assets");
 
     let parsed_class = classfile_parser::parse_class("./assets/SimpleClass").unwrap();
     println!("Version: {}.{}",
