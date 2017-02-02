@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Mackie Loeffel <mackie.loeffel@web.de>"]
 
 [dependencies]
+classfile-parser = { git = "https://github.com/Palmr/classfile-parser.git" }
