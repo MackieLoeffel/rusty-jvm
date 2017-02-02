@@ -1,4 +1,6 @@
 * Rusty JVM
+  [[https://travis-ci.org/MackieLoeffel/rusty-jvm.svg?branch=master]]
+
   An experiment to create a JVM in Rust.
 ** Sources:
    - https://docs.oracle.com/javase/specs/jvms/se6/html/VMSpecTOC.doc.html
