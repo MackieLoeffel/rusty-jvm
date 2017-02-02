@@ -1,5 +1,5 @@
 * Rusty JVM
-  [[https://travis-ci.org/MackieLoeffel/rusty-jvm.svg?branch=master]]
+  [[https://travis-ci.org/MackieLoeffel/rusty-jvm][file:https://travis-ci.org/MackieLoeffel/rusty-jvm.svg?branch=master]]
 
   An experiment to create a JVM in Rust.
 ** Sources:
