@@ -1,0 +1,6 @@
+[package]
+name = "rusty-jvm"
+version = "0.1.0"
+authors = ["Mackie Loeffel <mackie.loeffel@web.de>"]
+
+[dependencies]
