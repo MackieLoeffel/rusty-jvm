@@ -13,5 +13,5 @@ script:
 - |
   export PATH=$PATH:~/.cargo/bin &&
   cargo fmt -- --write-mode=diff &&
-  cargo build &&
-  cargo test
+  cargo build --features strict &&
+  cargo test --features strict
