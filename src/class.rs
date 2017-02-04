@@ -1,6 +1,7 @@
 use classfile_parser::*;
 use classfile_parser::constant_info::*;
 use classfile_parser::method_info::*;
+use classfile_parser::attribute_info::*;
 
 #[derive(Debug)]
 pub struct Class {
@@ -14,6 +15,20 @@ pub struct Method {
     access_flags: MethodAccessFlags,
     name: String,
     descriptor: String,
+    code: Option<Code>,
+}
+
+#[derive(Debug)]
+pub struct Code {
+    // TODO exception table
+    max_stack: usize,
+    max_locals: usize,
+    code: Vec<Instruction>,
+}
+
+#[derive(Debug)]
+pub enum Instruction {
+    UnknownInstruction,
 }
 
 impl Class {
@@ -46,11 +61,30 @@ impl Method {
         let name = parsed.constant_utf8(info.name_index)?;
         let descriptor = parsed.constant_utf8(info.descriptor_index)?;
 
+        let mut code: Option<Code> = None;
+        for attr in info.attributes.iter() {
+            match parsed.constant_utf8(attr.attribute_name_index)? {
+                "Code" => {
+                    if code.is_some() {
+                        return Err("two code attributes".to_owned());
+                    }
+
+                    let code_attr = match attr.try_as_code_attribute() {
+                        Some(c) => c,
+                        None => return Err("invalid code attributes".to_owned()),
+                    };
+                    code = Some(Code::from_class_file(&code_attr, parsed)?)
+                }
+                // ignore unknown attributes, see spec
+                _ => {}
+            };
+        }
 
         Ok(Method {
             access_flags: info.access_flags,
             name: name.to_owned(),
             descriptor: descriptor.to_owned(),
+            code: code,
         })
     }
 
@@ -60,6 +94,26 @@ impl Method {
     pub fn descriptor(&self) -> &str { &self.descriptor }
     #[allow(dead_code)]
     pub fn access_flags(&self) -> MethodAccessFlags { self.access_flags }
+    #[allow(dead_code)]
+    pub fn code(&self) -> &Option<Code> { &self.code }
+}
+
+impl Code {
+    pub fn from_class_file(attr: &CodeAttribute, _parsed: &ClassFile) -> Result<Code, String> {
+        Ok(Code {
+            max_stack: attr.max_stack as usize,
+            max_locals: attr.max_locals as usize,
+            // TODO: use real instructions
+            code: attr.code.iter().map(|_b| Instruction::UnknownInstruction).collect(),
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn max_stack(&self) -> usize { self.max_stack }
+    #[allow(dead_code)]
+    pub fn max_locals(&self) -> usize { self.max_locals }
+    #[allow(dead_code)]
+    pub fn code(&self) -> &Vec<Instruction> { &self.code }
 }
 
 trait ParsedClass {
@@ -126,5 +180,14 @@ mod tests {
         assert_eq!(method.name(), "main");
         assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
         assert_eq!(method.access_flags(), PUBLIC | STATIC);
+    }
+
+    #[test]
+    fn code_main() {
+        let class = get_class("SimpleClass");
+        let code = class.methods[1].code().as_ref().unwrap();
+        assert_eq!(code.max_stack(), 1);
+        assert_eq!(code.max_locals(), 2);
+        assert_eq!(code.code().len(), 3);
     }
 }
