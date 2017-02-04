@@ -1,10 +1,19 @@
 use classfile_parser::*;
 use classfile_parser::constant_info::*;
+use classfile_parser::method_info::*;
 
 #[derive(Debug)]
 pub struct Class {
     name: String,
     super_class: String,
+    methods: Vec<Method>,
+}
+
+#[derive(Debug)]
+pub struct Method {
+    access_flags: MethodAccessFlags,
+    name: String,
+    descriptor: String,
 }
 
 impl Class {
@@ -14,20 +23,48 @@ impl Class {
         let super_class =
             parsed.constant_utf8(parsed.constant_class(parsed.super_class)?.name_index)?;
 
+        let methods = parsed.methods
+            .iter()
+            .map(|info| Method::from_class_file(info, parsed))
+            .collect::<Result<Vec<Method>, String>>()?;
+
         Ok(Class {
-            name: name,
-            super_class: super_class,
+            name: name.to_owned(),
+            super_class: super_class.to_owned(),
+            methods: methods,
         })
     }
 
+    #[allow(dead_code)]
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
     pub fn super_class(&self) -> &str { &self.super_class }
 }
 
+impl Method {
+    pub fn from_class_file(info: &MethodInfo, parsed: &ClassFile) -> Result<Method, String> {
+        let name = parsed.constant_utf8(info.name_index)?;
+        let descriptor = parsed.constant_utf8(info.descriptor_index)?;
+
+
+        Ok(Method {
+            access_flags: info.access_flags,
+            name: name.to_owned(),
+            descriptor: descriptor.to_owned(),
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str { &self.name }
+    #[allow(dead_code)]
+    pub fn descriptor(&self) -> &str { &self.descriptor }
+    #[allow(dead_code)]
+    pub fn access_flags(&self) -> MethodAccessFlags { self.access_flags }
+}
+
 trait ParsedClass {
     fn constant(&self, index: u16) -> Result<&ConstantInfo, String>;
-    fn constant_utf8(&self, index: u16) -> Result<String, String>;
+    fn constant_utf8(&self, index: u16) -> Result<&str, String>;
     fn constant_class(&self, index: u16) -> Result<&ClassConstant, String>;
 }
 
@@ -39,9 +76,9 @@ impl ParsedClass for ClassFile {
         return Ok(&self.const_pool[(index - 1) as usize]);
     }
 
-    fn constant_utf8(&self, index: u16) -> Result<String, String> {
+    fn constant_utf8(&self, index: u16) -> Result<&str, String> {
         match *self.constant(index)? {
-            ConstantInfo::Utf8(ref s) => Ok(s.utf8_string.clone()),
+            ConstantInfo::Utf8(ref s) => Ok(&s.utf8_string),
             _ => Err("Not a utf8 constant".to_owned()),
         }
     }
@@ -71,5 +108,23 @@ mod tests {
     #[test]
     fn super_class() {
         assert_eq!(get_class("SimpleClass").super_class(), "java/lang/Object");
+    }
+
+    #[test]
+    fn method_init() {
+        let class = get_class("SimpleClass");
+        assert_eq!(class.methods.len(), 2);
+        let method = &class.methods[0];
+        assert_eq!(method.name(), "<init>");
+        assert_eq!(method.descriptor(), "()V");
+        assert_eq!(method.access_flags(), PUBLIC);
+    }
+
+    #[test]
+    fn method_main() {
+        let method = &get_class("SimpleClass").methods[1];
+        assert_eq!(method.name(), "main");
+        assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
+        assert_eq!(method.access_flags(), PUBLIC | STATIC);
     }
 }

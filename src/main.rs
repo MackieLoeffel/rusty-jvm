@@ -11,5 +11,5 @@ fn main() {
     let mut classloader = ClassLoader::new("./assets");
 
     let parsed_class = classloader.load_class("SimpleClass").unwrap();
-    println!("Name: {}", parsed_class.name());
+    println!("Class: {:?}", parsed_class);
 }

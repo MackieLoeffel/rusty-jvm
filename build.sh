@@ -5,3 +5,4 @@ for i in assets/*.java; do
 done
 
 cargo build && cargo test -- --nocapture
+# cargo run
