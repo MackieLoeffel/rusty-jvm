@@ -75,5 +75,25 @@ mod tests {
                    Some(ClassLoadingError::NoClassDefFound));
     }
 
+    #[test]
+    fn unsupported_class_version() {
+        let mut classloader = setup();
+        assert_eq!(classloader.load_class("UnsupportedClassVersion").err(),
+                   Some(ClassLoadingError::UnsupportedClassVersion));
+    }
 
+    #[test]
+    fn malformed_class() {
+        let mut classloader = setup();
+        assert_eq!(classloader.load_class("malformed").err(),
+                   Some(ClassLoadingError::ClassFormatError));
+    }
+
+    #[test]
+    fn good_class() {
+        let mut classloader = setup();
+        let class = classloader.load_class("SimpleClass").unwrap();
+        assert_eq!(class.minor_version, 0);
+        assert_eq!(class.major_version, 46);
+    }
 }
