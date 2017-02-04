@@ -14,24 +14,22 @@ const MAX_MAJOR_VERSION: u16 = 46;
 const MAX_MINOR_VERSION: u16 = 0;
 
 pub struct ClassLoader {
-    load_dir: PathBuf
+    load_dir: PathBuf,
 }
 
 impl ClassLoader {
-    pub fn new(load_dir: &str) -> ClassLoader {
-        ClassLoader { load_dir: load_dir.into() }
-    }
+    pub fn new(load_dir: &str) -> ClassLoader { ClassLoader { load_dir: load_dir.into() } }
 
     pub fn load_class(&mut self, name: &str) -> Result<ClassFile, ClassLoadingError> {
         let classfilename = format!("{}.class", name);
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,
-            Err(..) => return Err(ClassLoadingError::NoClassDefFound)
+            Err(..) => return Err(ClassLoadingError::NoClassDefFound),
         };
         let mut bytes = Vec::new();
         match file.read_to_end(&mut bytes) {
-            Ok(..) => {},
-            Err(..) => return Err(ClassLoadingError::NoClassDefFound)
+            Ok(..) => {}
+            Err(..) => return Err(ClassLoadingError::NoClassDefFound),
         };
 
         let classfile = match class_parser(&bytes) {
@@ -39,7 +37,12 @@ impl ClassLoader {
             _ => return Err(ClassLoadingError::ClassFormatError),
         };
 
-        if classfile.major_version < MIN_MAJOR_VERSION || (classfile.major_version == MIN_MAJOR_VERSION && classfile.minor_version < MIN_MINOR_VERSION) || classfile.major_version > MAX_MAJOR_VERSION || (classfile.major_version == MAX_MAJOR_VERSION && classfile.minor_version > MAX_MINOR_VERSION) {
+        if classfile.major_version < MIN_MAJOR_VERSION ||
+           (classfile.major_version == MIN_MAJOR_VERSION &&
+            classfile.minor_version < MIN_MINOR_VERSION) ||
+           classfile.major_version > MAX_MAJOR_VERSION ||
+           (classfile.major_version == MAX_MAJOR_VERSION &&
+            classfile.minor_version > MAX_MINOR_VERSION) {
             return Err(ClassLoadingError::UnsupportedClassVersion);
         }
 
