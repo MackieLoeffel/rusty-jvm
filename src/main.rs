@@ -1,16 +1,17 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate classfile_parser;
+extern crate nom;
 
 mod class_loader;
 
 use class_loader::ClassLoader;
 
 fn main() {
-    let _classloader = ClassLoader::new("./assets");
+    let mut classloader = ClassLoader::new("./assets");
 
-    let parsed_class = classfile_parser::parse_class("./assets/SimpleClass").unwrap();
+    let parsed_class = classloader.load_class("SimpleClass").unwrap();
     println!("Version: {}.{}",
-             parsed_class.minor_version,
-             parsed_class.major_version);
+             parsed_class.major_version,
+             parsed_class.minor_version);
 }

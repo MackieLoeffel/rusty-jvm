@@ -5,6 +5,7 @@ authors = ["Mackie Loeffel <mackie.loeffel@web.de>"]
 
 [dependencies]
 classfile-parser = { git = "https://github.com/Palmr/classfile-parser.git" }
+nom = "1.2.4"
 
 [features]
 # treat warnings as errors

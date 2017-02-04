@@ -3,6 +3,7 @@ name = "rusty-jvm"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0 (git+https://github.com/Palmr/classfile-parser.git)",
+ "nom 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
