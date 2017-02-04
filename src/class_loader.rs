@@ -48,7 +48,7 @@ impl ClassLoader {
 }
 
 // TODO implement Error and use ?-Operator above
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ClassLoadingError {
     NoClassDefFound,
     ClassFormatError,
@@ -57,4 +57,20 @@ pub enum ClassLoadingError {
     IncompatibleClassChange,
     #[allow(dead_code)]
     ClassCircularity,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup() -> ClassLoader { ClassLoader::new("./assets") }
+
+    #[test]
+    fn not_existing_class() {
+        let mut classloader = setup();
+        assert_eq!(classloader.load_class("NotExistingClass").err(),
+                   Some(ClassLoadingError::NoClassDefFound));
+    }
+
+
 }
