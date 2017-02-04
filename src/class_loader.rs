@@ -2,7 +2,8 @@ use nom::IResult;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::prelude::*;
-use classfile_parser::{ClassFile, class_parser};
+use classfile_parser::class_parser;
+use class::Class;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ConstantPool.doc.html
 
@@ -20,7 +21,7 @@ pub struct ClassLoader {
 impl ClassLoader {
     pub fn new(load_dir: &str) -> ClassLoader { ClassLoader { load_dir: load_dir.into() } }
 
-    pub fn load_class(&mut self, name: &str) -> Result<ClassFile, ClassLoadingError> {
+    pub fn load_class(&mut self, name: &str) -> Result<Class, ClassLoadingError> {
         let classfilename = format!("{}.class", name);
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,
@@ -34,7 +35,7 @@ impl ClassLoader {
 
         let classfile = match class_parser(&bytes) {
             IResult::Done(_, classfile) => classfile,
-            _ => return Err(ClassLoadingError::ClassFormatError),
+            _ => return Err(ClassLoadingError::ClassFormatError("Can't parse class".to_owned())),
         };
 
         if classfile.major_version < MIN_MAJOR_VERSION ||
@@ -46,7 +47,12 @@ impl ClassLoader {
             return Err(ClassLoadingError::UnsupportedClassVersion);
         }
 
-        Ok(classfile)
+        let class = match Class::from_class_file(&classfile) {
+            Ok(c) => c,
+            Err(s) => return Err(ClassLoadingError::ClassFormatError(s)),
+        };
+
+        Ok(class)
     }
 }
 
@@ -54,7 +60,7 @@ impl ClassLoader {
 #[derive(Debug, Eq, PartialEq)]
 pub enum ClassLoadingError {
     NoClassDefFound,
-    ClassFormatError,
+    ClassFormatError(String),
     UnsupportedClassVersion,
     #[allow(dead_code)]
     IncompatibleClassChange,
@@ -86,14 +92,13 @@ mod tests {
     fn malformed_class() {
         let mut classloader = setup();
         assert_eq!(classloader.load_class("malformed").err(),
-                   Some(ClassLoadingError::ClassFormatError));
+                   Some(ClassLoadingError::ClassFormatError("Can't parse class".to_owned())));
     }
 
     #[test]
     fn good_class() {
         let mut classloader = setup();
         let class = classloader.load_class("SimpleClass").unwrap();
-        assert_eq!(class.minor_version, 0);
-        assert_eq!(class.major_version, 46);
+        assert_eq!(class.name(), "com/mackie/rustyjvm/SimpleClass");
     }
 }
