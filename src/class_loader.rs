@@ -1,8 +1,7 @@
-use nom::IResult;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::prelude::*;
-use classfile_parser::class_parser;
+use classfile_parser::class_parser_option;
 use class::Class;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ConstantPool.doc.html
@@ -33,9 +32,9 @@ impl ClassLoader {
             Err(..) => return Err(ClassLoadingError::NoClassDefFound),
         };
 
-        let classfile = match class_parser(&bytes) {
-            IResult::Done(_, classfile) => classfile,
-            _ => return Err(ClassLoadingError::ClassFormatError("Can't parse class".to_owned())),
+        let classfile = match class_parser_option(&bytes) {
+            Some(classfile) => classfile,
+            None => return Err(ClassLoadingError::ClassFormatError("Can't parse class".to_owned())),
         };
 
         if classfile.major_version < MIN_MAJOR_VERSION ||

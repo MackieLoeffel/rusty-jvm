@@ -1,7 +1,6 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate classfile_parser;
-extern crate nom;
 
 mod class_loader;
 mod class;
