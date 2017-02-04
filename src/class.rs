@@ -4,17 +4,24 @@ use classfile_parser::constant_info::*;
 #[derive(Debug)]
 pub struct Class {
     name: String,
+    super_class: String,
 }
 
 impl Class {
     pub fn from_class_file(parsed: &ClassFile) -> Result<Class, String> {
         let this_class = parsed.constant_class(parsed.this_class)?;
         let name = parsed.constant_utf8(this_class.name_index)?;
+        let super_class =
+            parsed.constant_utf8(parsed.constant_class(parsed.super_class)?.name_index)?;
 
-        Ok(Class { name: name })
+        Ok(Class {
+            name: name,
+            super_class: super_class,
+        })
     }
 
     pub fn name(&self) -> &str { &self.name }
+    pub fn super_class(&self) -> &str { &self.super_class }
 }
 
 trait ParsedClass {
@@ -43,5 +50,25 @@ impl ParsedClass for ClassFile {
             ConstantInfo::Class(ref s) => Ok(s),
             _ => Err("Not a class constant".to_owned()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_class(classname: &str) -> Class {
+        Class::from_class_file(&parse_class(&format!("./assets/{}", classname)).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn name() {
+        assert_eq!(get_class("SimpleClass").name(),
+                   "com/mackie/rustyjvm/SimpleClass");
+    }
+
+    #[test]
+    fn super_class() {
+        assert_eq!(get_class("SimpleClass").super_class(), "java/lang/Object");
     }
 }
