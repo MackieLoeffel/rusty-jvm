@@ -46,6 +46,10 @@ impl Class {
         })
     }
 
+    pub fn method_by_name(&self, name: &str) -> Option<&Method> {
+        self.methods.iter().find(|m| m.name() == name)
+    }
+
     #[allow(dead_code)]
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
@@ -171,10 +175,16 @@ mod tests {
 
     #[test]
     fn method_main() {
-        let method = &get_class().methods[1];
+        let class = get_class();
+        let method = class.method_by_name("main").unwrap();
         assert_eq!(method.name(), "main");
         assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
         assert_eq!(method.access_flags(), PUBLIC | STATIC);
+    }
+
+    #[test]
+    fn method_not_exists() {
+        assert!(get_class().method_by_name("unknown method").is_none());
     }
 
     #[test]

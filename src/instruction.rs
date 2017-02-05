@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(non_camel_case_types)]
 #[allow(dead_code)] // TODO remove
 pub enum Instruction {
@@ -106,7 +106,7 @@ pub type LocalVarRef = u16;
 // true: equals, false: not equals
 pub type ComparisonEqual = bool;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Type {
     Reference,
     Char,
@@ -119,7 +119,7 @@ pub enum Type {
     Double,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Comparison {
     EQ,
     GE,
@@ -387,4 +387,91 @@ impl Instruction {
         // TODO: gotos/if anpassen
         return Ok(vec);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::Instruction::*;
+    use super::Type::*;
+    use class::Class;
+    use classfile_parser::parse_class;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn get_instructions(method_name: &str) -> Vec<Instruction> {
+        Class::from_class_file(&parse_class("./assets/TestInstruction").unwrap()).unwrap()
+            .method_by_name(method_name).unwrap()
+            .code().unwrap()
+            .code().to_vec()
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_conversions() {
+        assert_eq!(get_instructions("conversions"),
+                   vec![BIPUSH(1), STORE(Int, 1),
+                        LOAD(Int, 1),    CONVERT(Int, Byte), STORE(Int, 2),
+                        LOAD(Int, 1),    CONVERT(Int, Short), STORE(Int, 3),
+                        LOAD(Int, 1),    CONVERT(Int, Long), STORE(Long, 4),
+                        LOAD(Int, 1),    CONVERT(Int, Float), STORE(Float, 6),
+                        LOAD(Int, 1),    CONVERT(Int, Double), STORE(Double, 7),
+                        LOAD(Long, 4),   CONVERT(Long, Int), STORE(Int, 1),
+                        LOAD(Long, 4),   CONVERT(Long, Float), STORE(Float, 6),
+                        LOAD(Long, 4),   CONVERT(Long, Double), STORE(Double, 7),
+                        LOAD(Float, 6),  CONVERT(Float, Int), STORE(Int, 1),
+                        LOAD(Float, 6),  CONVERT(Float, Long), STORE(Long, 4),
+                        LOAD(Float, 6),  CONVERT(Float, Double), STORE(Double, 7),
+                        LOAD(Double, 7), CONVERT(Double, Int), STORE(Int, 1),
+                        LOAD(Double, 7), CONVERT(Double, Long), STORE(Long, 4),
+                        LOAD(Double, 7), CONVERT(Double, Float), STORE(Float, 6),
+                        RETURN(None)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_arithmetic() {
+        assert_eq!(get_instructions("arithmetic"),
+                   vec![BIPUSH(1), STORE(Int, 1),
+                        LCONST_1, STORE(Long, 2),
+                        FCONST_1, STORE(Float, 4),
+                        DCONST_1, STORE(Double, 5),
+                        LOAD(Int, 1), BIPUSH(1), ADD(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), SUB(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), MUL(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), DIV(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), REM(Int), STORE(Int, 1),
+                        LOAD(Int, 1), NEG(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), SHL(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), SHR(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), USHR(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), AND(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), OR(Int), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(1), XOR(Int), STORE(Int, 1),
+                        LOAD(Long, 2), LCONST_1, ADD(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, SUB(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, MUL(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, DIV(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, REM(Long), STORE(Long, 2),
+                        LOAD(Long, 2), NEG(Long), STORE(Long, 2),
+                        LOAD(Long, 2), BIPUSH(1), SHL(Long), STORE(Long, 2),
+                        LOAD(Long, 2), BIPUSH(1), SHR(Long), STORE(Long, 2),
+                        LOAD(Long, 2), BIPUSH(1), USHR(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, AND(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, OR(Long), STORE(Long, 2),
+                        LOAD(Long, 2), LCONST_1, XOR(Long), STORE(Long, 2),
+                        LOAD(Float, 4), FCONST_1, ADD(Float), STORE(Float, 4),
+                        LOAD(Float, 4), FCONST_1, SUB(Float), STORE(Float, 4),
+                        LOAD(Float, 4), FCONST_1, MUL(Float), STORE(Float, 4),
+                        LOAD(Float, 4), FCONST_1, DIV(Float), STORE(Float, 4),
+                        LOAD(Float, 4), FCONST_1, REM(Float), STORE(Float, 4),
+                        LOAD(Float, 4), NEG(Float), STORE(Float, 4),
+                        LOAD(Double, 5), DCONST_1, ADD(Double), STORE(Double, 5),
+                        LOAD(Double, 5), DCONST_1, SUB(Double), STORE(Double, 5),
+                        LOAD(Double, 5), DCONST_1, MUL(Double), STORE(Double, 5),
+                        LOAD(Double, 5), DCONST_1, DIV(Double), STORE(Double, 5),
+                        LOAD(Double, 5), DCONST_1, REM(Double), STORE(Double, 5),
+                        LOAD(Double, 5), NEG(Double), STORE(Double, 5),
+                        RETURN(None)]);
+    }
+
 }
