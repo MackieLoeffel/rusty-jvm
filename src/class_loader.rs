@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn good_class() {
         let mut classloader = setup();
-        let class = classloader.load_class("SimpleClass").unwrap();
-        assert_eq!(class.name(), "com/mackie/rustyjvm/SimpleClass");
+        let class = classloader.load_class("TestClass").unwrap();
+        assert_eq!(class.name(), "com/mackie/rustyjvm/TestClass");
     }
 }

@@ -10,6 +10,6 @@ use class_loader::ClassLoader;
 fn main() {
     let mut classloader = ClassLoader::new("./assets");
 
-    let parsed_class = classloader.load_class("SimpleClass").unwrap();
+    let parsed_class = classloader.load_class("HelloWorld").unwrap();
     println!("Class: {:?}", parsed_class);
 }

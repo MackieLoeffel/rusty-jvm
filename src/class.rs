@@ -95,7 +95,7 @@ impl Method {
     #[allow(dead_code)]
     pub fn access_flags(&self) -> MethodAccessFlags { self.access_flags }
     #[allow(dead_code)]
-    pub fn code(&self) -> &Option<Code> { &self.code }
+    pub fn code(&self) -> Option<&Code> { self.code.as_ref() }
 }
 
 impl Code {
@@ -149,24 +149,23 @@ impl ParsedClass for ClassFile {
 mod tests {
     use super::*;
 
-    fn get_class(classname: &str) -> Class {
-        Class::from_class_file(&parse_class(&format!("./assets/{}", classname)).unwrap()).unwrap()
+    fn get_class() -> Class {
+        Class::from_class_file(&parse_class("./assets/TestClass").unwrap()).unwrap()
     }
 
     #[test]
     fn name() {
-        assert_eq!(get_class("SimpleClass").name(),
-                   "com/mackie/rustyjvm/SimpleClass");
+        assert_eq!(get_class().name(), "com/mackie/rustyjvm/TestClass");
     }
 
     #[test]
     fn super_class() {
-        assert_eq!(get_class("SimpleClass").super_class(), "java/lang/Object");
+        assert_eq!(get_class().super_class(), "java/lang/Object");
     }
 
     #[test]
     fn method_init() {
-        let class = get_class("SimpleClass");
+        let class = get_class();
         assert_eq!(class.methods.len(), 2);
         let method = &class.methods[0];
         assert_eq!(method.name(), "<init>");
@@ -176,7 +175,7 @@ mod tests {
 
     #[test]
     fn method_main() {
-        let method = &get_class("SimpleClass").methods[1];
+        let method = &get_class().methods[1];
         assert_eq!(method.name(), "main");
         assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
         assert_eq!(method.access_flags(), PUBLIC | STATIC);
@@ -184,8 +183,8 @@ mod tests {
 
     #[test]
     fn code_main() {
-        let class = get_class("SimpleClass");
-        let code = class.methods[1].code().as_ref().unwrap();
+        let class = get_class();
+        let code = class.methods[1].code().unwrap();
         assert_eq!(code.max_stack(), 1);
         assert_eq!(code.max_locals(), 2);
         assert_eq!(code.code().len(), 3);
