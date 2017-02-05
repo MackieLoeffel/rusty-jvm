@@ -4,6 +4,7 @@ extern crate classfile_parser;
 
 mod class_loader;
 mod class;
+mod instruction;
 
 use class_loader::ClassLoader;
 

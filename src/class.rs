@@ -2,6 +2,7 @@ use classfile_parser::*;
 use classfile_parser::constant_info::*;
 use classfile_parser::method_info::*;
 use classfile_parser::attribute_info::*;
+use instruction::Instruction;
 
 #[derive(Debug)]
 pub struct Class {
@@ -24,11 +25,6 @@ pub struct Code {
     max_stack: usize,
     max_locals: usize,
     code: Vec<Instruction>,
-}
-
-#[derive(Debug)]
-pub enum Instruction {
-    UnknownInstruction,
 }
 
 impl Class {
@@ -104,7 +100,7 @@ impl Code {
             max_stack: attr.max_stack as usize,
             max_locals: attr.max_locals as usize,
             // TODO: use real instructions
-            code: attr.code.iter().map(|_b| Instruction::UnknownInstruction).collect(),
+            code: Instruction::decode(&attr.code)?,
         })
     }
 
