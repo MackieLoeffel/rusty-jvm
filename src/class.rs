@@ -46,6 +46,7 @@ impl Class {
         })
     }
 
+    #[allow(dead_code)]
     pub fn method_by_name(&self, name: &str) -> Option<&Method> {
         self.methods.iter().find(|m| m.name() == name)
     }
