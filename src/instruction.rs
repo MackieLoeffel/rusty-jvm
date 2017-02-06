@@ -447,6 +447,7 @@ mod tests {
                         LOAD(Int, 1), BIPUSH(1), AND(Int), STORE(Int, 1),
                         LOAD(Int, 1), BIPUSH(1), OR(Int), STORE(Int, 1),
                         LOAD(Int, 1), BIPUSH(1), XOR(Int), STORE(Int, 1),
+                        IINC(1, -10),
                         LOAD(Long, 2), LCONST_1, ADD(Long), STORE(Long, 2),
                         LOAD(Long, 2), LCONST_1, SUB(Long), STORE(Long, 2),
                         LOAD(Long, 2), LCONST_1, MUL(Long), STORE(Long, 2),
@@ -471,6 +472,42 @@ mod tests {
                         LOAD(Double, 5), DCONST_1, DIV(Double), STORE(Double, 5),
                         LOAD(Double, 5), DCONST_1, REM(Double), STORE(Double, 5),
                         LOAD(Double, 5), NEG(Double), STORE(Double, 5),
+                        RETURN(None)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_reference() {
+        assert_eq!(get_instructions("reference"),
+                   vec![ACONST_NULL, STORE(Reference, 1),
+                        LOAD(Reference, 1), STORE(Reference, 2),
+                        RETURN(None)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_array() {
+        assert_eq!(get_instructions("array"),
+                   vec![BIPUSH(2), NEWARRAY(Boolean), STORE(Reference, 1),
+                        LOAD(Reference, 1), BIPUSH(0), LOAD(Reference, 1), BIPUSH(1), ALOAD(Byte), ASTORE(Byte),
+                        BIPUSH(2), NEWARRAY(Byte), STORE(Reference, 2),
+                        LOAD(Reference, 2), BIPUSH(0), LOAD(Reference, 2), BIPUSH(1), ALOAD(Byte), ASTORE(Byte),
+                        BIPUSH(2), NEWARRAY(Short), STORE(Reference, 3),
+                        LOAD(Reference, 3), BIPUSH(0), LOAD(Reference, 3), BIPUSH(1), ALOAD(Short), ASTORE(Short),
+                        BIPUSH(2), NEWARRAY(Int), STORE(Reference, 4),
+                        LOAD(Reference, 4), BIPUSH(0), LOAD(Reference, 4), BIPUSH(1), ALOAD(Int), ASTORE(Int),
+                        BIPUSH(2), NEWARRAY(Long), STORE(Reference, 5),
+                        LOAD(Reference, 5), BIPUSH(0), LOAD(Reference, 5), BIPUSH(1), ALOAD(Long), ASTORE(Long),
+                        BIPUSH(2), NEWARRAY(Float), STORE(Reference, 6),
+                        LOAD(Reference, 6), BIPUSH(0), LOAD(Reference, 6), BIPUSH(1), ALOAD(Float), ASTORE(Float),
+                        BIPUSH(2), NEWARRAY(Double), STORE(Reference, 7),
+                        LOAD(Reference, 7), BIPUSH(0), LOAD(Reference, 7), BIPUSH(1), ALOAD(Double), ASTORE(Double),
+                        BIPUSH(2), NEWARRAY(Char), STORE(Reference, 8),
+                        LOAD(Reference, 8), BIPUSH(0), LOAD(Reference, 8), BIPUSH(1), ALOAD(Char), ASTORE(Char),
+                        BIPUSH(2), ANEWARRAY(2), STORE(Reference, 9), LOAD(Reference, 9),
+                        BIPUSH(0), LOAD(Reference, 9), BIPUSH(1), ALOAD(Reference), ASTORE(Reference),
+                        BIPUSH(2), BIPUSH(2), MULTIANEWARRAY(3, 2), STORE(Reference, 10),
+                        LOAD(Reference, 10), BIPUSH(0), ALOAD(Reference), BIPUSH(0), LOAD(Reference, 10), BIPUSH(1), ALOAD(Reference), BIPUSH(1), ALOAD(Reference), ASTORE(Reference),
                         RETURN(None)]);
     }
 
