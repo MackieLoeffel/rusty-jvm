@@ -92,5 +92,32 @@ public class TestInstruction {
         h[0] = h[1];
         Object[][] j = new Object[2][2];
         j[0][0] = j[1][1];
+        int l = j.length;
+    }
+
+    public void monitor() {
+        synchronized(this) {
+            int a = 1;
+        }
+    }
+
+    public void cmp() {
+        float f = 1.0f;
+        double d = 1.0;
+        long l = 1;
+        boolean a;
+        a = (d < 1.0);
+        a = (d > 1.0);
+        a = (f < 1.0f);
+        a = (f > 1.0f);
+        a = l == 1;
+    }
+
+    public void ldc() {
+        int a = -1234567;
+        float f = -1.337f;
+        String s = "Hallo!";
+        long b = -1234567L;
+        double d = -1.337;
     }
 }

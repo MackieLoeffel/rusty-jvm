@@ -100,12 +100,11 @@ impl Method {
 }
 
 impl Code {
-    pub fn from_class_file(attr: &CodeAttribute, _parsed: &ClassFile) -> Result<Code, String> {
+    pub fn from_class_file(attr: &CodeAttribute, parsed: &ClassFile) -> Result<Code, String> {
         Ok(Code {
             max_stack: attr.max_stack as usize,
             max_locals: attr.max_locals as usize,
-            // TODO: use real instructions
-            code: Instruction::decode(&attr.code)?,
+            code: Instruction::decode(&attr.code, parsed)?,
         })
     }
 
@@ -117,7 +116,7 @@ impl Code {
     pub fn code(&self) -> &Vec<Instruction> { &self.code }
 }
 
-trait ParsedClass {
+pub trait ParsedClass {
     fn constant(&self, index: u16) -> Result<&ConstantInfo, String>;
     fn constant_utf8(&self, index: u16) -> Result<&str, String>;
     fn constant_class(&self, index: u16) -> Result<&ClassConstant, String>;

@@ -1,4 +1,8 @@
-#[derive(Debug, Clone, Eq, PartialEq)]
+use classfile_parser::ClassFile;
+use classfile_parser::constant_info::ConstantInfo;
+use class::ParsedClass;
+
+#[derive(Debug, Clone, PartialEq)]
 #[allow(non_camel_case_types)]
 #[allow(dead_code)] // TODO remove
 pub enum Instruction {
@@ -11,12 +15,12 @@ pub enum Instruction {
 
     ATHROW,
 
-    CHECKCAST(ConstPoolRef),
-    INSTANCEOF(ConstPoolRef),
+    CHECKCAST(String),
+    INSTANCEOF(String),
 
-    ANEWARRAY(ConstPoolRef),
-    MULTIANEWARRAY(ConstPoolRef, u8),
-    NEW(ConstPoolRef),
+    ANEWARRAY(String),
+    MULTIANEWARRAY(String, u8),
+    NEW(String),
     NEWARRAY(Type),
 
     // D2F, D2I,...
@@ -55,8 +59,12 @@ pub enum Instruction {
     LCONST_1,
     BIPUSH(i8),
     SIPUSH(i16),
-    LDC(ConstPoolRef),
-    LDC2_W(ConstPoolRef),
+
+    LDC_INT(i32),
+    LDC_FLOAT(f32),
+    LDC_STRING(String),
+    LDC_DOUBLE(f64),
+    LDC_LONG(i64),
 
     DUP,
     DUP_X1,
@@ -68,6 +76,7 @@ pub enum Instruction {
     POP2,
     SWAP,
 
+    // TODO remove const pool ref
     GETFIELD(ConstPoolRef),
     GETSTATIC(ConstPoolRef),
     PUTFIELD(ConstPoolRef),
@@ -83,6 +92,7 @@ pub enum Instruction {
     IF(Comparison, i16),
     IFNULL(ComparisonEqual, i16),
 
+    // TODO remove const pool ref
     INVOKEINTERFACE(ConstPoolRef, u8),
     INVOKESPECIAL(ConstPoolRef),
     INVOKESTATIC(ConstPoolRef),
@@ -130,7 +140,7 @@ pub enum Comparison {
 }
 
 impl Instruction {
-    pub fn decode(bytes: &[u8]) -> Result<Vec<Instruction>, String> {
+    pub fn decode(bytes: &[u8], parsed: &ClassFile) -> Result<Vec<Instruction>, String> {
         use self::Instruction::*;
         use self::Type::*;
         use self::Comparison::*;
@@ -151,6 +161,17 @@ impl Instruction {
             let b2 = next_u16(index, bytes)? as u32;
             return Ok((b1 << 16) | b2);
         }
+        fn class_ref(index: &mut usize, bytes: &[u8], parsed: &ClassFile) -> Result<String, String> {
+            Ok(parsed.constant_utf8(parsed.constant_class(next_u16(index, bytes)?)?.name_index)?.to_owned())
+        }
+        fn ldc(index: u16, parsed: &ClassFile) -> Result<Instruction, String> {
+            match parsed.constant(index)? {
+                &ConstantInfo::Integer(ref s) => Ok(LDC_INT(s.value)),
+                &ConstantInfo::Float(ref s) => Ok(LDC_FLOAT(s.value)),
+                &ConstantInfo::String(ref s) => Ok(LDC_STRING(parsed.constant_utf8(s.string_index)?.to_owned())),
+                c @ _ => Err(format!("Invalid Value for LDC reference: {}", c.to_string())),
+            }
+        }
 
         let mut vec = Vec::new();
 
@@ -167,7 +188,7 @@ impl Instruction {
                 0x2b => LOAD(Reference, 1),
                 0x2c => LOAD(Reference, 2),
                 0x2d => LOAD(Reference, 3),
-                0xbd => ANEWARRAY(next_u16(&mut index, bytes)?),
+                0xbd => ANEWARRAY(class_ref(&mut index, bytes, parsed)?),
                 0xb0 => RETURN(Some(Reference)),
                 0xbe => ARRAYLENGTH,
                 0x3a => STORE(Reference, next(&mut index, bytes)? as u16),
@@ -181,7 +202,7 @@ impl Instruction {
                 0x10 => BIPUSH(next(&mut index, bytes)? as i8),
                 0x34 => ALOAD(Char),
                 0x55 => ASTORE(Char),
-                0xc0 => CHECKCAST(next_u16(&mut index, bytes)?),
+                0xc0 => CHECKCAST(class_ref(&mut index, bytes, parsed)?),
                 0x90 => CONVERT(Double, Float),
                 0x8e => CONVERT(Double, Int),
                 0x8f => CONVERT(Double, Long),
@@ -290,10 +311,9 @@ impl Instruction {
                 0x1d => LOAD(Int, 3),
                 0x68 => MUL(Int),
                 0x74 => NEG(Int),
-                0xc1 => INSTANCEOF(next_u16(&mut index, bytes)?),
+                0xc1 => INSTANCEOF(class_ref(&mut index, bytes, parsed)?),
                 0xb9 => {
-                    let op = INVOKEINTERFACE(next_u16(&mut index, bytes)?,
-                                             next(&mut index, bytes)?);
+                    let op = INVOKEINTERFACE(next_u16(&mut index, bytes)?, next(&mut index, bytes)?);
                     next(&mut index, bytes)?; // discard 0
                     op
                 }
@@ -325,9 +345,15 @@ impl Instruction {
                 0x94 => LCMP,
                 0x09 => LCONST_0,
                 0x0a => LCONST_1,
-                0x12 => LDC(next(&mut index, bytes)? as u16),
-                0x13 => LDC(next_u16(&mut index, bytes)?),
-                0x14 => LDC2_W(next_u16(&mut index, bytes)?),
+                0x12 => ldc(next(&mut index, bytes)? as u16, parsed)?,
+                0x13 => ldc(next_u16(&mut index, bytes)?, parsed)?,
+                0x14 => {
+                    match parsed.constant(next_u16(&mut index, bytes)?)? {
+                        &ConstantInfo::Double(ref s) => LDC_DOUBLE(s.value),
+                        &ConstantInfo::Long(ref s) => LDC_LONG(s.value),
+                        c @ _ => return Err(format!("Invalid Value for LDC2 reference: {}", c.to_string())),
+                    }
+                }
                 0x6d => DIV(Long),
                 0x16 => LOAD(Long, next(&mut index, bytes)? as u16),
                 0x1e => LOAD(Long, 0),
@@ -352,8 +378,11 @@ impl Instruction {
                 0x83 => XOR(Long),
                 0xc2 => MONITORENTER,
                 0xc3 => MONITOREXIT,
-                0xc5 => MULTIANEWARRAY(next_u16(&mut index, bytes)?, next(&mut index, bytes)?),
-                0xbb => NEW(next_u16(&mut index, bytes)?),
+                0xc5 => {
+                    MULTIANEWARRAY(class_ref(&mut index, bytes, parsed)?,
+                                   next(&mut index, bytes)?)
+                }
+                0xbb => NEW(class_ref(&mut index, bytes, parsed)?),
                 0xbc => {
                     NEWARRAY(match next(&mut index, bytes)? {
                         4 => Boolean,
@@ -394,6 +423,7 @@ mod tests {
     use super::*;
     use super::Instruction::*;
     use super::Type::*;
+    use super::Comparison::*;
     use class::Class;
     use classfile_parser::parse_class;
 
@@ -504,11 +534,50 @@ mod tests {
                         LOAD(Reference, 7), BIPUSH(0), LOAD(Reference, 7), BIPUSH(1), ALOAD(Double), ASTORE(Double),
                         BIPUSH(2), NEWARRAY(Char), STORE(Reference, 8),
                         LOAD(Reference, 8), BIPUSH(0), LOAD(Reference, 8), BIPUSH(1), ALOAD(Char), ASTORE(Char),
-                        BIPUSH(2), ANEWARRAY(2), STORE(Reference, 9), LOAD(Reference, 9),
+                        BIPUSH(2), ANEWARRAY("java/lang/Object".to_owned()), STORE(Reference, 9), LOAD(Reference, 9),
                         BIPUSH(0), LOAD(Reference, 9), BIPUSH(1), ALOAD(Reference), ASTORE(Reference),
-                        BIPUSH(2), BIPUSH(2), MULTIANEWARRAY(3, 2), STORE(Reference, 10),
-                        LOAD(Reference, 10), BIPUSH(0), ALOAD(Reference), BIPUSH(0), LOAD(Reference, 10), BIPUSH(1), ALOAD(Reference), BIPUSH(1), ALOAD(Reference), ASTORE(Reference),
+                        BIPUSH(2), BIPUSH(2), MULTIANEWARRAY("[[Ljava/lang/Object;".to_owned(), 2),STORE(Reference, 10),
+                        LOAD(Reference, 10), BIPUSH(0), ALOAD(Reference), BIPUSH(0), LOAD(Reference, 10),
+                        BIPUSH(1), ALOAD(Reference), BIPUSH(1), ALOAD(Reference), ASTORE(Reference),
+                        LOAD(Reference, 10), ARRAYLENGTH, STORE(Int, 11),
                         RETURN(None)]);
     }
 
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_monitor() {
+        assert_eq!(get_instructions("monitor"),
+                   vec![LOAD(Reference, 0), DUP, STORE(Reference, 1), MONITORENTER,
+                        BIPUSH(1), STORE(Int, 2),
+                        LOAD(Reference, 1), MONITOREXIT, GOTO(8), // TODO check this number
+                        // release monitor on exception
+                        STORE(Reference, 3), LOAD(Reference, 1), MONITOREXIT, LOAD(Reference, 3), ATHROW,
+                        RETURN(None)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_cmp() {
+        assert_eq!(get_instructions("cmp"),
+                   // TODO: check gotos and Ifs
+                   vec![FCONST_1, STORE(Float, 1), DCONST_1, STORE(Double, 2), LCONST_1, STORE(Long, 4),
+                        LOAD(Double, 2), DCONST_1, DCMPG, IF(GE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Double, 2), DCONST_1, DCMPL, IF(LE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Float, 1), FCONST_1, FCMPG, IF(GE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Float, 1), FCONST_1, FCMPL, IF(LE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Long, 4), LCONST_1, LCMP, IF(NE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
+                        RETURN(None)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_ldc() {
+        assert_eq!(get_instructions("ldc"),
+                   vec![LDC_INT(-1234567), STORE(Int, 1),
+                        LDC_FLOAT(-1.337), STORE(Float, 2),
+                        LDC_STRING("Hallo!".to_owned()), STORE(Reference, 3),
+                        LDC_LONG(-1234567), STORE(Long, 4),
+                        LDC_DOUBLE(-1.337), STORE(Double, 6),
+                        RETURN(None)]);
+    }
 }

@@ -13,7 +13,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "classfile-parser"
 version = "0.1.0"
-source = "git+https://github.com/MackieLoeffel/classfile-parser.git#104be283a08b5e9b1b793cfbfff64d49c9b1a3bf"
+source = "git+https://github.com/MackieLoeffel/classfile-parser.git#ab28a4a27944c83116042f2f41d45b1dcd4c9ea0"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
