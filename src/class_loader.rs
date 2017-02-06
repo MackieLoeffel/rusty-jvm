@@ -38,11 +38,9 @@ impl ClassLoader {
         };
 
         if classfile.major_version < MIN_MAJOR_VERSION ||
-           (classfile.major_version == MIN_MAJOR_VERSION &&
-            classfile.minor_version < MIN_MINOR_VERSION) ||
+           (classfile.major_version == MIN_MAJOR_VERSION && classfile.minor_version < MIN_MINOR_VERSION) ||
            classfile.major_version > MAX_MAJOR_VERSION ||
-           (classfile.major_version == MAX_MAJOR_VERSION &&
-            classfile.minor_version > MAX_MINOR_VERSION) {
+           (classfile.major_version == MAX_MAJOR_VERSION && classfile.minor_version > MAX_MINOR_VERSION) {
             return Err(ClassLoadingError::UnsupportedClassVersion);
         }
 

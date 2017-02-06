@@ -1,6 +1,6 @@
 use classfile_parser::ClassFile;
 use classfile_parser::constant_info::ConstantInfo;
-use class::ParsedClass;
+use class::{ParsedClass, MethodRef, FieldRef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -76,11 +76,10 @@ pub enum Instruction {
     POP2,
     SWAP,
 
-    // TODO remove const pool ref
-    GETFIELD(ConstPoolRef),
-    GETSTATIC(ConstPoolRef),
-    PUTFIELD(ConstPoolRef),
-    PUTSTATIC(ConstPoolRef),
+    GETFIELD(FieldRef),
+    GETSTATIC(FieldRef),
+    PUTFIELD(FieldRef),
+    PUTSTATIC(FieldRef),
 
     GOTO(i32),
     JSR(i32),
@@ -92,11 +91,10 @@ pub enum Instruction {
     IF(Comparison, i16),
     IFNULL(ComparisonEqual, i16),
 
-    // TODO remove const pool ref
-    INVOKEINTERFACE(ConstPoolRef, u8),
-    INVOKESPECIAL(ConstPoolRef),
-    INVOKESTATIC(ConstPoolRef),
-    INVOKEVIRTUAL(ConstPoolRef),
+    INVOKEINTERFACE(MethodRef, u8),
+    INVOKESPECIAL(MethodRef),
+    INVOKESTATIC(MethodRef),
+    INVOKEVIRTUAL(MethodRef),
 
     LOOKUPSWITCH(i32, i32, Vec<(i32, i32)>),
     TABLESWITCH(i32, i32, i32, Vec<i32>),
@@ -106,9 +104,6 @@ pub enum Instruction {
 
     NOP,
 }
-
-// index into the constant pool
-pub type ConstPoolRef = u16;
 
 // index into the local variables
 pub type LocalVarRef = u16;
@@ -162,7 +157,7 @@ impl Instruction {
             return Ok((b1 << 16) | b2);
         }
         fn class_ref(index: &mut usize, bytes: &[u8], parsed: &ClassFile) -> Result<String, String> {
-            Ok(parsed.constant_utf8(parsed.constant_class(next_u16(index, bytes)?)?.name_index)?.to_owned())
+            Ok(parsed.constant_class(next_u16(index, bytes)?)?.to_owned())
         }
         fn ldc(index: u16, parsed: &ClassFile) -> Result<Instruction, String> {
             match parsed.constant(index)? {
@@ -262,8 +257,8 @@ impl Instruction {
                 0x45 => STORE(Float, 2),
                 0x46 => STORE(Float, 3),
                 0x66 => SUB(Float),
-                0xb4 => GETFIELD(next_u16(&mut index, bytes)?),
-                0xb2 => GETSTATIC(next_u16(&mut index, bytes)?),
+                0xb4 => GETFIELD(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
+                0xb2 => GETSTATIC(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
                 0xa7 => GOTO((next_u16(&mut index, bytes)? as i16) as i32),
                 0xc8 => GOTO(next_u32(&mut index, bytes)? as i32),
                 0x91 => CONVERT(Int, Byte),
@@ -313,13 +308,14 @@ impl Instruction {
                 0x74 => NEG(Int),
                 0xc1 => INSTANCEOF(class_ref(&mut index, bytes, parsed)?),
                 0xb9 => {
-                    let op = INVOKEINTERFACE(next_u16(&mut index, bytes)?, next(&mut index, bytes)?);
+                    let op = INVOKEINTERFACE(parsed.constant_interface_method_ref(next_u16(&mut index, bytes)?)?,
+                                             next(&mut index, bytes)?);
                     next(&mut index, bytes)?; // discard 0
                     op
                 }
-                0xb7 => INVOKESPECIAL(next_u16(&mut index, bytes)?),
-                0xb8 => INVOKESTATIC(next_u16(&mut index, bytes)?),
-                0xb6 => INVOKEVIRTUAL(next_u16(&mut index, bytes)?),
+                0xb7 => INVOKESPECIAL(parsed.constant_method_ref(next_u16(&mut index, bytes)?)?),
+                0xb8 => INVOKESTATIC(parsed.constant_method_ref(next_u16(&mut index, bytes)?)?),
+                0xb6 => INVOKEVIRTUAL(parsed.constant_method_ref(next_u16(&mut index, bytes)?)?),
                 0x80 => OR(Int),
                 0x70 => REM(Int),
                 0xac => RETURN(Some(Int)),
@@ -399,8 +395,8 @@ impl Instruction {
                 0x00 => NOP,
                 0x57 => POP,
                 0x58 => POP2,
-                0xb5 => PUTFIELD(next_u16(&mut index, bytes)?),
-                0xb3 => PUTSTATIC(next_u16(&mut index, bytes)?),
+                0xb5 => PUTFIELD(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
+                0xb3 => PUTSTATIC(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
                 0xa9 => RET(next(&mut index, bytes)? as u16),
                 0xb1 => RETURN(None),
                 0x35 => ALOAD(Short),

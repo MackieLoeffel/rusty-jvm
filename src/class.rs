@@ -29,10 +29,8 @@ pub struct Code {
 
 impl Class {
     pub fn from_class_file(parsed: &ClassFile) -> Result<Class, String> {
-        let this_class = parsed.constant_class(parsed.this_class)?;
-        let name = parsed.constant_utf8(this_class.name_index)?;
-        let super_class =
-            parsed.constant_utf8(parsed.constant_class(parsed.super_class)?.name_index)?;
+        let name = parsed.constant_class(parsed.this_class)?;
+        let super_class = parsed.constant_class(parsed.super_class)?;
 
         let methods = parsed.methods
             .iter()
@@ -47,9 +45,7 @@ impl Class {
     }
 
     #[allow(dead_code)]
-    pub fn method_by_name(&self, name: &str) -> Option<&Method> {
-        self.methods.iter().find(|m| m.name() == name)
-    }
+    pub fn method_by_name(&self, name: &str) -> Option<&Method> { self.methods.iter().find(|m| m.name() == name) }
 
     #[allow(dead_code)]
     pub fn name(&self) -> &str { &self.name }
@@ -119,7 +115,25 @@ impl Code {
 pub trait ParsedClass {
     fn constant(&self, index: u16) -> Result<&ConstantInfo, String>;
     fn constant_utf8(&self, index: u16) -> Result<&str, String>;
-    fn constant_class(&self, index: u16) -> Result<&ClassConstant, String>;
+    fn constant_class(&self, index: u16) -> Result<&str, String>;
+    fn constant_name_and_type(&self, index: u16) -> Result<(&str, &str), String>;
+    fn constant_field_ref(&self, index: u16) -> Result<FieldRef, String>;
+    fn constant_method_ref(&self, index: u16) -> Result<MethodRef, String>;
+    fn constant_interface_method_ref(&self, index: u16) -> Result<MethodRef, String>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldRef {
+    name: String,
+    class: String,
+    descriptor: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodRef {
+    name: String,
+    class: String,
+    descriptor: String,
 }
 
 impl ParsedClass for ClassFile {
@@ -137,9 +151,60 @@ impl ParsedClass for ClassFile {
         }
     }
 
-    fn constant_class(&self, index: u16) -> Result<&ClassConstant, String> {
+    fn constant_class(&self, index: u16) -> Result<&str, String> {
         match *self.constant(index)? {
-            ConstantInfo::Class(ref s) => Ok(s),
+            ConstantInfo::Class(ref s) => Ok(self.constant_utf8(s.name_index)?),
+            _ => Err("Not a class constant".to_owned()),
+        }
+    }
+
+    fn constant_name_and_type(&self, index: u16) -> Result<(&str, &str), String> {
+        match *self.constant(index)? {
+            ConstantInfo::NameAndType(ref s) => {
+                Ok((self.constant_utf8(s.name_index)?, self.constant_utf8(s.descriptor_index)?))
+            }
+            _ => Err("Not a class constant".to_owned()),
+        }
+    }
+
+    fn constant_field_ref(&self, index: u16) -> Result<FieldRef, String> {
+        match *self.constant(index)? {
+            ConstantInfo::FieldRef(ref s) => {
+                let (name, typ) = self.constant_name_and_type(s.name_and_type_index)?;
+                Ok(FieldRef {
+                    class: self.constant_class(s.class_index)?.to_owned(),
+                    name: name.to_owned(),
+                    descriptor: typ.to_owned(),
+                })
+            }
+            _ => Err("Not a class constant".to_owned()),
+        }
+    }
+
+    fn constant_method_ref(&self, index: u16) -> Result<MethodRef, String> {
+        match *self.constant(index)? {
+            ConstantInfo::MethodRef(ref s) => {
+                let (name, typ) = self.constant_name_and_type(s.name_and_type_index)?;
+                Ok(MethodRef {
+                    class: self.constant_class(s.class_index)?.to_owned(),
+                    name: name.to_owned(),
+                    descriptor: typ.to_owned(),
+                })
+            }
+            _ => Err("Not a class constant".to_owned()),
+        }
+    }
+
+    fn constant_interface_method_ref(&self, index: u16) -> Result<MethodRef, String> {
+        match *self.constant(index)? {
+            ConstantInfo::InterfaceMethodRef(ref s) => {
+                let (name, typ) = self.constant_name_and_type(s.name_and_type_index)?;
+                Ok(MethodRef {
+                    class: self.constant_class(s.class_index)?.to_owned(),
+                    name: name.to_owned(),
+                    descriptor: typ.to_owned(),
+                })
+            }
             _ => Err("Not a class constant".to_owned()),
         }
     }
@@ -149,9 +214,7 @@ impl ParsedClass for ClassFile {
 mod tests {
     use super::*;
 
-    fn get_class() -> Class {
-        Class::from_class_file(&parse_class("./assets/TestClass").unwrap()).unwrap()
-    }
+    fn get_class() -> Class { Class::from_class_file(&parse_class("./assets/TestClass").unwrap()).unwrap() }
 
     #[test]
     fn name() {
