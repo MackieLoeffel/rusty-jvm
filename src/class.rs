@@ -128,12 +128,32 @@ pub struct FieldRef {
     class: String,
     descriptor: String,
 }
+impl FieldRef {
+    #[allow(dead_code)]
+    pub fn new(name: &str, class: &str, descriptor: &str) -> FieldRef {
+        FieldRef {
+            name: name.to_owned(),
+            class: class.to_owned(),
+            descriptor: descriptor.to_owned(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodRef {
     name: String,
     class: String,
     descriptor: String,
+}
+impl MethodRef {
+    #[allow(dead_code)]
+    pub fn new(name: &str, class: &str, descriptor: &str) -> MethodRef {
+        MethodRef {
+            name: name.to_owned(),
+            class: class.to_owned(),
+            descriptor: descriptor.to_owned(),
+        }
+    }
 }
 
 impl ParsedClass for ClassFile {

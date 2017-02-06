@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use classfile_parser::ClassFile;
 use classfile_parser::constant_info::ConstantInfo;
 use class::{ParsedClass, MethodRef, FieldRef};
@@ -81,15 +82,16 @@ pub enum Instruction {
     PUTFIELD(FieldRef),
     PUTSTATIC(FieldRef),
 
-    GOTO(i32),
-    JSR(i32),
+    GOTO(CodeAddress),
+    // TODO: find java code, which generates jsr and ret (finally doesn't)
+    JSR(CodeAddress),
     RET(LocalVarRef),
 
-    IF_ACMP(ComparisonEqual, i16),
-    IF_ICMP(Comparison, i16),
+    IF_ACMP(ComparisonEqual, CodeAddress),
+    IF_ICMP(Comparison, CodeAddress),
     // comparison with zero
-    IF(Comparison, i16),
-    IFNULL(ComparisonEqual, i16),
+    IF(Comparison, CodeAddress),
+    IFNULL(ComparisonEqual, CodeAddress),
 
     INVOKEINTERFACE(MethodRef, u8),
     INVOKESPECIAL(MethodRef),
@@ -104,6 +106,9 @@ pub enum Instruction {
 
     NOP,
 }
+
+// index into the local code
+pub type CodeAddress = u32;
 
 // index into the local variables
 pub type LocalVarRef = u16;
@@ -171,8 +176,16 @@ impl Instruction {
         let mut vec = Vec::new();
 
         let mut index = 0;
+        let mut decoded_index = 0;
+        // we need this map to be able to restore the correct jump addresses later
+        // all instructions contain relative byte addresses
+        // we change them to absolute byte addresses first and absolute instruction addresses later
+        let mut old_to_new_index = HashMap::new();
         while index < bytes.len() {
-            let cur = bytes[index];
+            let cur = bytes[index as usize];
+            old_to_new_index.insert(index, decoded_index);
+            decoded_index += 1;
+            let current_index = index;
             index += 1;
             vec.push(match cur {
                 0x32 => ALOAD(Reference),
@@ -259,8 +272,8 @@ impl Instruction {
                 0x66 => SUB(Float),
                 0xb4 => GETFIELD(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
                 0xb2 => GETSTATIC(parsed.constant_field_ref(next_u16(&mut index, bytes)?)?),
-                0xa7 => GOTO((next_u16(&mut index, bytes)? as i16) as i32),
-                0xc8 => GOTO(next_u32(&mut index, bytes)? as i32),
+                0xa7 => GOTO((next_u16(&mut index, bytes)? as i16 as i64 + current_index as i64) as CodeAddress),
+                0xc8 => GOTO((next_u32(&mut index, bytes)? as i32 as i64 + current_index as i64) as CodeAddress),
                 0x91 => CONVERT(Int, Byte),
                 0x92 => CONVERT(Int, Char),
                 0x87 => CONVERT(Int, Double),
@@ -279,22 +292,38 @@ impl Instruction {
                 0x07 => BIPUSH(4),
                 0x08 => BIPUSH(5),
                 0x6c => DIV(Int),
-                0xa5 => IF_ACMP(true, next_u16(&mut index, bytes)? as i16),
-                0xa6 => IF_ACMP(false, next_u16(&mut index, bytes)? as i16),
-                0x9f => IF_ICMP(EQ, next_u16(&mut index, bytes)? as i16),
-                0xa2 => IF_ICMP(GE, next_u16(&mut index, bytes)? as i16),
-                0xa3 => IF_ICMP(GT, next_u16(&mut index, bytes)? as i16),
-                0xa4 => IF_ICMP(LE, next_u16(&mut index, bytes)? as i16),
-                0xa1 => IF_ICMP(LT, next_u16(&mut index, bytes)? as i16),
-                0xa0 => IF_ICMP(NE, next_u16(&mut index, bytes)? as i16),
-                0x99 => IF(EQ, next_u16(&mut index, bytes)? as i16),
-                0x9c => IF(GE, next_u16(&mut index, bytes)? as i16),
-                0x9d => IF(GT, next_u16(&mut index, bytes)? as i16),
-                0x9e => IF(LE, next_u16(&mut index, bytes)? as i16),
-                0x9b => IF(LT, next_u16(&mut index, bytes)? as i16),
-                0x9a => IF(NE, next_u16(&mut index, bytes)? as i16),
-                0xc7 => IFNULL(false, next_u16(&mut index, bytes)? as i16),
-                0xc6 => IFNULL(true, next_u16(&mut index, bytes)? as i16),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa5=>IF_ACMP(true, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa6=>IF_ACMP(false,(next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9f=>IF_ICMP(EQ, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa2=>IF_ICMP(GE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa3=>IF_ICMP(GT, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa4=>IF_ICMP(LE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa1=>IF_ICMP(LT, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xa0=>IF_ICMP(NE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x99=>IF(EQ, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9c=>IF(GE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9d=>IF(GT, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9e=>IF(LE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9b=>IF(LT, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0x9a=>IF(NE, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xc7=>IFNULL(false, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
+                #[cfg_attr(rustfmt, rustfmt_skip)]
+                0xc6=>IFNULL(true, (next_u16(&mut index, bytes)? as i16 as i32 + current_index as i32) as CodeAddress),
                 0x84 => {
                     IINC(next(&mut index, bytes)? as u16,
                          (next(&mut index, bytes)? as i8) as i16)
@@ -329,8 +358,8 @@ impl Instruction {
                 0x64 => SUB(Int),
                 0x7c => USHR(Int),
                 0x82 => XOR(Int),
-                0xa8 => JSR((next_u16(&mut index, bytes)? as i16) as i32),
-                0xc9 => JSR(next_u32(&mut index, bytes)? as i32),
+                0xa8 => JSR((next_u16(&mut index, bytes)? as i16 as i64 + current_index as i64) as CodeAddress),
+                0xc9 => JSR((next_u32(&mut index, bytes)? as i32 as i64 + current_index as i64) as CodeAddress),
                 0x8a => CONVERT(Long, Double),
                 0x89 => CONVERT(Long, Float),
                 0x88 => CONVERT(Long, Int),
@@ -409,7 +438,25 @@ impl Instruction {
             });
         }
 
-        // TODO: gotos/if anpassen
+        // fix addresses in goto and other instructions, so that they contain an absolute offset into the code
+        fn fixup_address(address: CodeAddress,
+                         old_to_new_index: &HashMap<usize, usize>)
+                         -> Result<CodeAddress, String> {
+            old_to_new_index.get(&(address as usize))
+                .map(|v| *v as CodeAddress)
+                .ok_or(format!("Can't resolve CodeAddress {}", address))
+        }
+        for instr in vec.iter_mut() {
+            match instr {
+                &mut GOTO(addr) => *instr = GOTO(fixup_address(addr, &old_to_new_index)?),
+                &mut JSR(addr) => *instr = JSR(fixup_address(addr, &old_to_new_index)?),
+                &mut IF_ACMP(comp, addr) => *instr = IF_ACMP(comp, fixup_address(addr, &old_to_new_index)?),
+                &mut IF_ICMP(comp, addr) => *instr = IF_ICMP(comp, fixup_address(addr, &old_to_new_index)?),
+                &mut IF(comp, addr) => *instr = IF(comp, fixup_address(addr, &old_to_new_index)?),
+                &mut IFNULL(comp, addr) => *instr = IFNULL(comp, fixup_address(addr, &old_to_new_index)?),
+                _ => continue,
+            }
+        }
         return Ok(vec);
     }
 }
@@ -545,7 +592,7 @@ mod tests {
         assert_eq!(get_instructions("monitor"),
                    vec![LOAD(Reference, 0), DUP, STORE(Reference, 1), MONITORENTER,
                         BIPUSH(1), STORE(Int, 2),
-                        LOAD(Reference, 1), MONITOREXIT, GOTO(8), // TODO check this number
+                        LOAD(Reference, 1), MONITOREXIT, GOTO(14),
                         // release monitor on exception
                         STORE(Reference, 3), LOAD(Reference, 1), MONITOREXIT, LOAD(Reference, 3), ATHROW,
                         RETURN(None)]);
@@ -555,25 +602,121 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_cmp() {
         assert_eq!(get_instructions("cmp"),
-                   // TODO: check gotos and Ifs
-                   vec![FCONST_1, STORE(Float, 1), DCONST_1, STORE(Double, 2), LCONST_1, STORE(Long, 4),
-                        LOAD(Double, 2), DCONST_1, DCMPG, IF(GE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
-                        LOAD(Double, 2), DCONST_1, DCMPL, IF(LE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
-                        LOAD(Float, 1), FCONST_1, FCMPG, IF(GE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
-                        LOAD(Float, 1), FCONST_1, FCMPL, IF(LE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
-                        LOAD(Long, 4), LCONST_1, LCMP, IF(NE, 7), BIPUSH(1), GOTO(4), BIPUSH(0), STORE(Int, 6),
-                        RETURN(None)]);
+                  vec![FCONST_1, STORE(Float, 1), DCONST_1, STORE(Double, 2), LCONST_1, STORE(Long, 4),
+                        LOAD(Double, 2), DCONST_1, DCMPG, IF(GE, 12), BIPUSH(1), GOTO(13), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Double, 2), DCONST_1, DCMPL, IF(LE, 20), BIPUSH(1), GOTO(21), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Float, 1), FCONST_1, FCMPG, IF(GE, 28), BIPUSH(1), GOTO(29), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Float, 1), FCONST_1, FCMPL, IF(LE, 36), BIPUSH(1), GOTO(37), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Long, 4), LCONST_1, LCMP, IF(NE, 44), BIPUSH(1), GOTO(45), BIPUSH(0), STORE(Int, 6),
+                        LOAD(Float, 1), RETURN(Some(Float))]);
     }
 
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_ldc() {
         assert_eq!(get_instructions("ldc"),
-                   vec![LDC_INT(-1234567), STORE(Int, 1),
-                        LDC_FLOAT(-1.337), STORE(Float, 2),
-                        LDC_STRING("Hallo!".to_owned()), STORE(Reference, 3),
-                        LDC_LONG(-1234567), STORE(Long, 4),
-                        LDC_DOUBLE(-1.337), STORE(Double, 6),
+                   vec![LDC_INT(-1234567), STORE(Int, 0),
+                        LDC_FLOAT(-1.337), STORE(Float, 1),
+                        LDC_STRING("Hallo!".to_owned()), STORE(Reference, 2),
+                        LDC_LONG(-1234567), STORE(Long, 3),
+                        LDC_DOUBLE(-1.337), STORE(Double, 5),
+                        LOAD(Double, 5), RETURN(Some(Double))]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_cast() {
+        assert_eq!(get_instructions("cast"),
+                   vec![NEW("java/lang/Object".to_owned()), DUP,
+                        INVOKESPECIAL(MethodRef::new("<init>",
+                                                     "java/lang/Object",
+                                                     "()V")), STORE(Reference, 1),
+                        NEW("java/lang/String".to_owned()), DUP, LDC_STRING("Hallo".to_owned()),
+                        INVOKESPECIAL(MethodRef::new("<init>",
+                                                     "java/lang/String",
+                                                     "(Ljava/lang/String;)V")), STORE(Reference, 2),
+                        LOAD(Reference, 2), INSTANCEOF("java/lang/Object".to_owned()), STORE(Int, 3),
+                        LOAD(Reference, 1), CHECKCAST("java/lang/String".to_owned()), STORE(Reference, 2),
+                        LOAD(Int, 3), RETURN(Some(Int))]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_field() {
+        assert_eq!(get_instructions("field"),
+                   vec![LOAD(Reference, 0),
+                        GETFIELD(FieldRef::new("field",
+                                               "com/mackie/rustyjvm/TestInstruction",
+                                               "I")),
+                        STORE(Int, 1),
+                        LOAD(Reference, 0),
+                        LOAD(Int, 1),
+                        PUTFIELD(FieldRef::new("field",
+                                               "com/mackie/rustyjvm/TestInstruction",
+                                               "I")),
+                        GETSTATIC(FieldRef::new("static_field",
+                                                "com/mackie/rustyjvm/TestInstruction",
+                                                "Ljava/lang/String;")),
+                        STORE(Reference, 2),
+                        LOAD(Reference, 2),
+                        PUTSTATIC(FieldRef::new("static_field",
+                                                "com/mackie/rustyjvm/TestInstruction",
+                                                "Ljava/lang/String;")),
+                        LOAD(Reference, 2), RETURN(Some(Reference))]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_jumps() {
+        assert_eq!(get_instructions("jumps"),
+                   vec![SIPUSH(1337), STORE(Int, 1),
+                        LOAD(Int, 1), BIPUSH(10), IF_ICMP(GE, 8),
+                        SIPUSH(1337), STORE(Int, 2), GOTO(2),
+                        SIPUSH(1337), STORE(Int, 2), GOTO(8)]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_ifs() {
+        assert_eq!(get_instructions("ifs"),
+                   vec![BIPUSH(0), STORE(Int, 1),
+                        ACONST_NULL, STORE(Reference, 2),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(GE, 9), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(GT, 14), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(NE, 19), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(EQ, 24), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(LT, 29), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), BIPUSH(1), IF_ICMP(LE, 34), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(GE, 38), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(GT, 42), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(NE, 46), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(EQ, 50), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(LT, 54), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), IF(LE, 58), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Reference, 2), LOAD(Reference, 2), IF_ACMP(false, 63), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Reference, 2), LOAD(Reference, 2), IF_ACMP(true, 68), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Reference, 2), IFNULL(false, 72), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Reference, 2), IFNULL(true, 76), BIPUSH(1), STORE(Int, 3),
+                        LOAD(Int, 1), RETURN(Some(Int))]);
+    }
+
+    #[test]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    fn test_invoke() {
+        assert_eq!(get_instructions("invoke"),
+                   vec![LOAD(Reference, 0),
+                        INVOKEVIRTUAL(MethodRef::new("ifs", "com/mackie/rustyjvm/TestInstruction", "()I")),
+                        STORE(Int, 1),
+                        LOAD(Reference, 0),
+                        INVOKEVIRTUAL(MethodRef::new("jumps", "com/mackie/rustyjvm/TestInstruction", "()V")),
+                        LOAD(Reference, 0),
+                        INVOKESPECIAL(MethodRef::new("hashCode", "java/lang/Object", "()I")),
+                        POP,
+                        INVOKESTATIC(MethodRef::new("ldc", "com/mackie/rustyjvm/TestInstruction", "()D")),
+                        POP2,
+                        ACONST_NULL, STORE(Reference, 2),
+                        LOAD(Reference, 2),
+                        INVOKEINTERFACE(MethodRef::new("method", "com/mackie/rustyjvm/Interface", "()V"), 1),
                         RETURN(None)]);
     }
 }

@@ -1,5 +1,9 @@
 package com.mackie.rustyjvm;
 
+interface Interface {
+    void method();
+}
+
 public class TestInstruction {
     void conversions() {
         int a = 1;
@@ -101,7 +105,7 @@ public class TestInstruction {
         }
     }
 
-    public void cmp() {
+    public float cmp() {
         float f = 1.0f;
         double d = 1.0;
         long l = 1;
@@ -111,13 +115,77 @@ public class TestInstruction {
         a = (f < 1.0f);
         a = (f > 1.0f);
         a = l == 1;
+        return f;
     }
 
-    public void ldc() {
+    public static double ldc() {
         int a = -1234567;
         float f = -1.337f;
         String s = "Hallo!";
         long b = -1234567L;
         double d = -1.337;
+        return d;
+    }
+
+    public boolean cast() {
+        Object a = new Object();
+        String b = new String("Hallo");
+        boolean c = b instanceof Object;
+        b = (String)a;
+        return c;
+    }
+
+    public int field;
+    public static String static_field;
+
+    public String field() {
+        int a = field;
+        field = a;
+        String b = static_field;
+        static_field = b;
+        return b;
+    }
+
+    public final void jumps() {
+        int b = 1337;
+        while(b < 10) {
+            int a = 1337;
+        }
+        while(true) {
+            int a = 1337;
+        }
+    }
+
+    public int ifs() {
+        int i = 0;
+        Object o = null;
+        if(i < 1) { int b = 1; }
+        if(i <= 1) { int b = 1; }
+        if(i == 1) { int b = 1; }
+        if(i != 1) { int b = 1; }
+        if(i >= 1) { int b = 1; }
+        if(i > 1) { int b = 1; }
+
+        if(i < 0) { int b = 1; }
+        if(i <= 0) { int b = 1; }
+        if(i == 0) { int b = 1; }
+        if(i != 0) { int b = 1; }
+        if(i >= 0) { int b = 1; }
+        if(i > 0) { int b = 1; }
+
+        if(o == o) { int b = 1; }
+        if(o != o) { int b = 1; }
+        if(o == null) { int b = 1; }
+        if(o != null) { int b = 1; }
+        return i;
+    }
+
+    public void invoke() {
+        int a = ifs();
+        jumps();
+        super.hashCode();
+        ldc();
+        Interface c = null;
+        c.method();
     }
 }
