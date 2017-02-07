@@ -4,6 +4,9 @@ use classfile_parser::method_info::*;
 use classfile_parser::attribute_info::*;
 use instruction::Instruction;
 
+// see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#40222
+pub const MAX_INSTRUCTIONS_PER_METHOD: usize = 65536;
+
 #[derive(Debug)]
 pub struct Class {
     name: String,
@@ -70,6 +73,18 @@ impl Method {
                         Some(c) => c,
                         None => return Err("invalid code attribute".to_owned()),
                     };
+
+                    if code_attr.code.len() == 0 {
+                        return Err("Code may not be empty".to_owned());
+                    }
+
+                    if code_attr.code.len() > MAX_INSTRUCTIONS_PER_METHOD {
+                        return Err(format!("Code of method {} is bigger than the maximum of {} (size: {})",
+                                           name,
+                                           MAX_INSTRUCTIONS_PER_METHOD,
+                                           code_attr.code.len()));
+                    }
+
                     code = Some(Code::from_class_file(&code_attr, parsed)?)
                 }
                 // ignore unknown attributes, see spec
@@ -104,11 +119,8 @@ impl Code {
         })
     }
 
-    #[allow(dead_code)]
     pub fn max_stack(&self) -> usize { self.max_stack }
-    #[allow(dead_code)]
     pub fn max_locals(&self) -> usize { self.max_locals }
-    #[allow(dead_code)]
     pub fn code(&self) -> &Vec<Instruction> { &self.code }
 }
 

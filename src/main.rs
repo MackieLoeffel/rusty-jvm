@@ -20,7 +20,7 @@ fn main() {
     }
 
     let mut vm = VM::new(classloader);
-    match vm.run("HelloWorld", &["arg1", "arg2"]) {
+    match vm.start("HelloWorld", &["arg1", "arg2"]) {
         Ok(..) => println!("Finished!"),
         Err(ref err) => println!("Error running: {}", err),
     };
