@@ -68,7 +68,7 @@ impl Method {
 
                     let code_attr = match attr.try_as_code_attribute() {
                         Some(c) => c,
-                        None => return Err("invalid code attributes".to_owned()),
+                        None => return Err("invalid code attribute".to_owned()),
                     };
                     code = Some(Code::from_class_file(&code_attr, parsed)?)
                 }

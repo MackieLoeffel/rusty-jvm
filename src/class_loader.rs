@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::prelude::*;
 use classfile_parser::class_parser_option;
 use class::Class;
+use errors::ClassLoadingError;
+use std::cell::UnsafeCell;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ConstantPool.doc.html
 
@@ -15,21 +18,38 @@ const MAX_MINOR_VERSION: u16 = 0;
 
 pub struct ClassLoader {
     load_dir: PathBuf,
+    // see http://stackoverflow.com/a/25190401
+    loaded_classes: UnsafeCell<HashMap<String, Class>>
 }
 
 impl ClassLoader {
-    pub fn new(load_dir: &str) -> ClassLoader { ClassLoader { load_dir: load_dir.into() } }
+    pub fn new(load_dir: &str) -> ClassLoader {
+        ClassLoader {
+            load_dir: load_dir.into(),
+            loaded_classes: UnsafeCell::new(HashMap::new()),
+        }
+    }
 
-    pub fn load_class(&mut self, name: &str) -> Result<Class, ClassLoadingError> {
+    pub fn load_class(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
+        unsafe {
+            if let Some(ref c) = (*self.loaded_classes.get()).get(name) {
+                println!("c: {:?}", c);
+                return Ok(c);
+            }
+        }
+        self.load_file(name.split('/').last().unwrap_or(name))
+    }
+
+    pub fn load_file(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
         let classfilename = format!("{}.class", name);
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,
-            Err(..) => return Err(ClassLoadingError::NoClassDefFound),
+            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Some(err))),
         };
         let mut bytes = Vec::new();
         match file.read_to_end(&mut bytes) {
             Ok(..) => {}
-            Err(..) => return Err(ClassLoadingError::NoClassDefFound),
+            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Some(err))),
         };
 
         let classfile = match class_parser_option(&bytes) {
@@ -49,20 +69,13 @@ impl ClassLoader {
             Err(s) => return Err(ClassLoadingError::ClassFormatError(s)),
         };
 
-        Ok(class)
-    }
-}
+        let class_name = class.name().to_owned();
+        unsafe{
+            assert!((*self.loaded_classes.get()).insert(class_name.clone(), class).is_none());
 
-// TODO implement Error and use ?-Operator above
-#[derive(Debug, Eq, PartialEq)]
-pub enum ClassLoadingError {
-    NoClassDefFound,
-    ClassFormatError(String),
-    UnsupportedClassVersion,
-    #[allow(dead_code)]
-    IncompatibleClassChange,
-    #[allow(dead_code)]
-    ClassCircularity,
+            Ok((*self.loaded_classes.get()).get(&class_name).unwrap())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -74,22 +87,28 @@ mod tests {
     #[test]
     fn not_existing_class() {
         let mut classloader = setup();
-        assert_eq!(classloader.load_class("NotExistingClass").err(),
-                   Some(ClassLoadingError::NoClassDefFound));
+        assert!(match classloader.load_class("NotExistingClass").err() {
+            Some(ClassLoadingError::NoClassDefFound(..)) => true,
+            _ => false,
+        });
     }
 
     #[test]
     fn unsupported_class_version() {
         let mut classloader = setup();
-        assert_eq!(classloader.load_class("UnsupportedClassVersion").err(),
-                   Some(ClassLoadingError::UnsupportedClassVersion));
+        assert!(match classloader.load_class("UnsupportedClassVersion").err() {
+            Some(ClassLoadingError::UnsupportedClassVersion) => true,
+            _ => false,
+        });
     }
 
     #[test]
     fn malformed_class() {
         let mut classloader = setup();
-        assert_eq!(classloader.load_class("malformed").err(),
-                   Some(ClassLoadingError::ClassFormatError("Can't parse class".to_owned())));
+        assert!(match classloader.load_class("malformed").err() {
+            Some(ClassLoadingError::ClassFormatError(..)) => true,
+            _ => false,
+        });
     }
 
     #[test]
