@@ -129,6 +129,16 @@ pub enum Type {
     Double,
 }
 
+impl Type {
+    #[inline(always)]
+    pub fn is_double_sized(&self) -> bool {
+        match *self {
+            Type::Long | Type::Double => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Comparison {
     EQ,

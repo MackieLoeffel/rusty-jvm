@@ -1,7 +1,8 @@
 use classfile_parser::method_info::{PUBLIC, STATIC};
 use class_loader::ClassLoader;
-use instruction::Instruction;
+use instruction::{Instruction, LocalVarRef, CodeAddress};
 use instruction::Instruction::*;
+use instruction::Type::*;
 
 pub struct VM {
     classloader: ClassLoader,
@@ -15,8 +16,8 @@ pub struct Frame {
     code: Vec<Instruction>,
     ip: usize,
     sp: usize,
-    local_vars: Vec<u32>,
-    stack: Vec<u32>,
+    local_vars: Vec<i32>,
+    stack: Vec<i32>,
 }
 
 
@@ -58,25 +59,90 @@ impl VM {
     pub fn invoke_method(&mut self, class_name: &str, method: &str) {
         // these unwraps should be checked in the linking stage
         let method = self.classloader.load_class(class_name).unwrap().method_by_name(method).unwrap();
-        let code = method.code().expect("Method must have code");
 
-        self.frames.push( Frame {
+        let code = method.code().expect("Method must have code");
+        println!("Code: {:?}", code);
+
+        let mut local_vars = Vec::with_capacity(code.max_locals());
+        local_vars.resize(code.max_locals(), 0);
+        let mut stack = Vec::with_capacity(code.max_stack());
+        stack.resize(code.max_stack(), 0);
+        self.frames.push(Frame {
             ip: 0,
             sp: 0,
-            local_vars: Vec::with_capacity(code.max_locals()),
-            stack: Vec::with_capacity(code.max_stack()),
+            local_vars: local_vars,
+            stack: stack,
             code: code.code().clone(),
         });
     }
 
     fn run(&mut self) {
-        let frame = self.frames.pop().expect("No frame supplied for run");
+        let mut frame = self.frames.pop().expect("No frame supplied for run");
         loop {
-            match frame.code[frame.ip].clone() {
-                c@ _ => panic!("Not implemented Instruction {:?}", c),
+            match frame.next() {
+                BIPUSH(i) => frame.push(i as i32),
+                STORE(typ, idx) => {
+                    if typ.is_double_sized() {
+                        let v = frame.pop();
+                        frame.store(idx, v);
+                    }
+                    let v = frame.pop();
+                    frame.store(idx, v);
+                }
+                LOAD(typ, idx) => {
+                    let v = frame.load(idx);
+                    frame.push(v);
+                    if typ.is_double_sized() {
+                        let v2 = frame.load(idx + 1);
+                        frame.push(v2);
+                    }
+                }
+                RETURN(o) => {
+                    if self.frames.is_empty() {
+                        return;
+                    }
+                    let mut old_frame = frame;
+                    frame = self.frames.pop().unwrap();
+                    if let Some(typ) = o {
+                        let v = old_frame.pop();
+                        frame.push(v);
+                        if typ.is_double_sized() {
+                            let v2 = old_frame.pop();
+                            frame.push(v2);
+                        }
+                    }
+                }
+                c @ _ => panic!("Not implemented Instruction {:?}", c),
             }
         }
     }
+}
+
+impl Frame {
+    #[inline(always)]
+    fn next(&mut self) -> Instruction {
+        let instruction = self.code[self.ip].clone();
+        self.ip += 1;
+        instruction
+    }
+
+    #[inline(always)]
+    fn push(&mut self, val: i32) {
+        self.stack[self.sp] = val;
+        self.sp += 1;
+    }
+
+    #[inline(always)]
+    fn pop(&mut self) -> i32 {
+        self.sp -= 1;
+        self.stack[self.sp]
+    }
+
+    #[inline(always)]
+    fn store(&mut self, index: LocalVarRef, val: i32) { self.local_vars[index as usize] = val; }
+
+    #[inline(always)]
+    fn load(&self, index: LocalVarRef) -> i32 { self.local_vars[index as usize] }
 }
 
 #[cfg(test)]
