@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use classfile_parser::ClassFile;
 use classfile_parser::constant_info::ConstantInfo;
-use class::{ParsedClass, MethodRef, FieldRef};
+use parsed_class::{ParsedClass, MethodRef, FieldRef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[allow(non_camel_case_types)]

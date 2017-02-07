@@ -1,4 +1,4 @@
-use classfile_parser::method_info::{PUBLIC, STATIC};
+use classfile_parser::method_info::{PUBLIC, STATIC, NATIVE};
 use class_loader::ClassLoader;
 use instruction::{Instruction, LocalVarRef, CodeAddress};
 use instruction::Instruction::*;
@@ -7,6 +7,8 @@ use instruction::Type::*;
 pub struct VM {
     classloader: ClassLoader,
     frames: Vec<Frame>,
+    // TODO #[cfg(debug)]
+    native_calls: Vec<(String, String, Vec<i32>)>
 }
 
 pub struct Frame {
@@ -20,10 +22,10 @@ pub struct Frame {
     stack: Vec<i32>,
 }
 
-
 impl VM {
     pub fn new(loader: ClassLoader) -> VM {
         VM {
+            native_calls: Vec::new(),
             classloader: loader,
             frames: Vec::new(),
         }
@@ -35,6 +37,7 @@ impl VM {
         {
             let start_class = self.classloader.load_class(class).map_err(|err| format!("ClassLoadingError: {}", err))?;
 
+            // TODO select by descriptor as well, may be overloaded
             let main = match start_class.method_by_name("main") {
                 Some(m) => m,
                 None => return Err("No main method found!".to_owned()),
@@ -58,7 +61,13 @@ impl VM {
 
     pub fn invoke_method(&mut self, class_name: &str, method: &str) {
         // these unwraps should be checked in the linking stage
+        // TODO select by descriptor as well, may be overloaded
         let method = self.classloader.load_class(class_name).unwrap().method_by_name(method).unwrap();
+
+        if method.access_flags().contains(NATIVE) {
+
+            return;
+        }
 
         let code = method.code().expect("Method must have code");
         println!("Code: {:?}", code);
@@ -83,8 +92,9 @@ impl VM {
                 BIPUSH(i) => frame.push(i as i32),
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
+                        // TODO test
                         let v = frame.pop();
-                        frame.store(idx, v);
+                        frame.store(idx + 1, v);
                     }
                     let v = frame.pop();
                     frame.store(idx, v);
@@ -93,6 +103,7 @@ impl VM {
                     let v = frame.load(idx);
                     frame.push(v);
                     if typ.is_double_sized() {
+                        // TODO test
                         let v2 = frame.load(idx + 1);
                         frame.push(v2);
                     }
@@ -103,10 +114,12 @@ impl VM {
                     }
                     let mut old_frame = frame;
                     frame = self.frames.pop().unwrap();
+
                     if let Some(typ) = o {
                         let v = old_frame.pop();
                         frame.push(v);
                         if typ.is_double_sized() {
+                        // TODO test
                             let v2 = old_frame.pop();
                             frame.push(v2);
                         }
