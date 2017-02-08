@@ -86,9 +86,7 @@ mod tests {
     use super::*;
     use super::FieldDescriptorType::*;
 
-    fn fd(typ: FieldDescriptorType, num_array: usize) -> Option<FieldDescriptor> {
-        Some(fdo(typ, num_array))
-    }
+    fn fd(typ: FieldDescriptorType, num_array: usize) -> Option<FieldDescriptor> { Some(fdo(typ, num_array)) }
 
     fn fdo(typ: FieldDescriptorType, num_array: usize) -> FieldDescriptor {
         FieldDescriptor {
@@ -173,12 +171,15 @@ mod tests {
 
     #[test]
     fn method_one() {
-        assert_eq!(MethodDescriptor::parse("(S)I"), md(vec![fdo(Byte, 0)], fd(Int, 0)));
+        assert_eq!(MethodDescriptor::parse("(S)I"),
+                   md(vec![fdo(Short, 0)], fd(Int, 0)));
     }
 
     #[test]
     fn method_many() {
-        assert_eq!(MethodDescriptor::parse("(IDLjava/lang/Thread;)Ljava/lang/Object;"), md(vec![], None));
+        assert_eq!(MethodDescriptor::parse("(I[DLjava/lang/Thread;)Ljava/lang/Object;"),
+                   md(vec![fdo(Int, 0), fdo(Double, 1), fdo(Reference("java/lang/Thread".to_owned()), 0)],
+                      Some(fdo(Reference("java/lang/Object".to_owned()), 0))));
     }
 
     #[test]
