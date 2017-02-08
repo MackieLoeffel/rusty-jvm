@@ -1,8 +1,8 @@
 use classfile_parser::{ClassFile, parse_class};
 use classfile_parser::method_info::*;
 use classfile_parser::attribute_info::*;
-use instruction::Instruction;
-use parsed_class::{ParsedClass};
+use instruction::{Instruction, Type};
+use parsed_class::ParsedClass;
 use descriptor::MethodDescriptor;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#40222
@@ -99,23 +99,25 @@ impl Method {
             None => return Err(format!("invalid method descriptor for method {}", name)),
         };
 
+        let mut words_for_params = parsed_descriptor.words_for_params();
+        if !info.access_flags.contains(STATIC) {
+            words_for_params += Type::Reference.word_size()
+        };
+
         Ok(Method {
             access_flags: info.access_flags,
             name: name.to_owned(),
             descriptor: descriptor.to_owned(),
             code: code,
-            words_for_params: parsed_descriptor.words_for_params(),
+            words_for_params: words_for_params,
         })
     }
 
-    #[allow(dead_code)]
     pub fn name(&self) -> &str { &self.name }
-    #[allow(dead_code)]
     pub fn descriptor(&self) -> &str { &self.descriptor }
-    #[allow(dead_code)]
     pub fn access_flags(&self) -> MethodAccessFlags { self.access_flags }
-    #[allow(dead_code)]
     pub fn code(&self) -> Option<&Code> { self.code.as_ref() }
+    pub fn words_for_params(&self) -> usize { self.words_for_params }
 }
 
 impl Code {

@@ -8,7 +8,7 @@ pub struct VM {
     classloader: ClassLoader,
     frames: Vec<Frame>,
     // TODO #[cfg(debug)]
-    native_calls: Vec<(String, String, Vec<i32>)>
+    native_calls: Vec<(String, String, Vec<i32>)>,
 }
 
 pub struct Frame {
@@ -53,19 +53,23 @@ impl VM {
             class_name = start_class.name().to_owned();
         }
         // TODO push args on the stack
-        self.invoke_method(&class_name, "main");
+        self.invoke_method(&class_name, "main", &mut Frame::dummy_frame(0));
 
         self.run();
         Ok(())
     }
 
-    pub fn invoke_method(&mut self, class_name: &str, method: &str) {
+    pub fn invoke_method(&mut self, class_name: &str, method: &str, calling_frame: &mut Frame) {
         // these unwraps should be checked in the linking stage
         // TODO select by descriptor as well, may be overloaded
         let method = self.classloader.load_class(class_name).unwrap().method_by_name(method).unwrap();
 
-        if method.access_flags().contains(NATIVE) {
+        let args = &calling_frame.stack[calling_frame.sp - method.words_for_params()..calling_frame.sp];
+        calling_frame.sp -= method.words_for_params();
 
+        if method.access_flags().contains(NATIVE) {
+            self.native_calls.push((method.name().to_owned(), method.descriptor().to_owned(), args.to_vec()));
+            // TODO real handling of call
             return;
         }
 
@@ -119,7 +123,7 @@ impl VM {
                         let v = old_frame.pop();
                         frame.push(v);
                         if typ.is_double_sized() {
-                        // TODO test
+                            // TODO test
                             let v2 = old_frame.pop();
                             frame.push(v2);
                         }
@@ -132,6 +136,18 @@ impl VM {
 }
 
 impl Frame {
+    fn dummy_frame(stack_size: usize) -> Frame {
+        let mut stack = Vec::with_capacity(stack_size);
+        stack.resize(stack_size, 0);
+        Frame {
+            ip: 0,
+            sp: 0,
+            stack: stack,
+            local_vars: Vec::new(),
+            code: Vec::new(),
+        }
+    }
+
     #[inline(always)]
     fn next(&mut self) -> Instruction {
         let instruction = self.code[self.ip].clone();
@@ -165,7 +181,7 @@ mod tests {
     fn run(class: &str, method: &str) {
         let classloader = ClassLoader::new("./assets");
         let mut vm = VM::new(classloader);
-        vm.invoke_method(class, method);
+        vm.invoke_method(class, method, &mut Frame::dummy_frame(0));
         vm.run();
     }
 
