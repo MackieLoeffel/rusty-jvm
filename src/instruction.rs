@@ -137,6 +137,9 @@ impl Type {
             _ => false,
         }
     }
+
+    #[inline(always)]
+    pub fn word_size(&self) -> usize { if self.is_double_sized() { 2 } else { 1 } }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

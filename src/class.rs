@@ -3,6 +3,7 @@ use classfile_parser::method_info::*;
 use classfile_parser::attribute_info::*;
 use instruction::Instruction;
 use parsed_class::{ParsedClass};
+use descriptor::MethodDescriptor;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#40222
 pub const MAX_INSTRUCTIONS_PER_METHOD: usize = 65536;
@@ -20,6 +21,7 @@ pub struct Method {
     name: String,
     descriptor: String,
     code: Option<Code>,
+    words_for_params: usize,
 }
 
 #[derive(Debug)]
@@ -92,11 +94,17 @@ impl Method {
             };
         }
 
+        let parsed_descriptor = match MethodDescriptor::parse(descriptor) {
+            Some(c) => c,
+            None => return Err(format!("invalid method descriptor for method {}", name)),
+        };
+
         Ok(Method {
             access_flags: info.access_flags,
             name: name.to_owned(),
             descriptor: descriptor.to_owned(),
             code: code,
+            words_for_params: parsed_descriptor.words_for_params(),
         })
     }
 

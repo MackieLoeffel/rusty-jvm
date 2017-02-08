@@ -1,8 +1,11 @@
+use std::ops::Deref;
+use instruction::Type;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FieldDescriptor {
     num_array: usize,
     typ: FieldDescriptorType,
+    simple_typ: Type,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -41,7 +44,10 @@ named!(field_descriptor<&str, FieldDescriptor>,
                    name: take_until_and_consume!(";") >> ( FieldDescriptorType::Reference(name.to_owned()) )
                )
            ) >> (
-               FieldDescriptor {num_array: num_array.len(), typ: typ}
+               FieldDescriptor {num_array: num_array.len(),
+                                simple_typ: as_type(&typ, num_array.len()),
+                                typ: typ,
+               }
            )
        )
 );
@@ -60,6 +66,24 @@ named!(method_descriptor<&str, MethodDescriptor>,
        )
 );
 
+fn as_type(typ: &FieldDescriptorType, num_array: usize) -> Type {
+    if num_array > 0 {
+        return Type::Reference;
+    }
+
+    match *typ {
+        FieldDescriptorType::Byte => Type::Byte,
+        FieldDescriptorType::Char => Type::Char,
+        FieldDescriptorType::Double => Type::Double,
+        FieldDescriptorType::Float => Type::Float,
+        FieldDescriptorType::Int => Type::Int,
+        FieldDescriptorType::Long => Type::Long,
+        FieldDescriptorType::Reference(..) => Type::Reference,
+        FieldDescriptorType::Short => Type::Short,
+        FieldDescriptorType::Boolean => Type::Boolean,
+    }
+}
+
 impl FieldDescriptor {
     pub fn parse(desc: &str) -> Option<FieldDescriptor> {
         named!(fd_eof<&str, FieldDescriptor>, do_parse!(
@@ -67,7 +91,15 @@ impl FieldDescriptor {
                 eof!() >> (fd)
                ));
         fd_eof(desc).to_result().ok()
+    }
 
+}
+
+impl Deref for FieldDescriptor {
+    type Target = Type;
+
+    fn deref(&self) -> &Type {
+        &self.simple_typ
     }
 }
 
@@ -78,6 +110,10 @@ impl MethodDescriptor {
                 eof!() >> (fd)
         ));
         md_eof(desc).to_result().ok()
+    }
+
+    pub fn words_for_params(&self) -> usize {
+        self.params.iter().map(|e| e.word_size()).sum()
     }
 }
 
@@ -90,6 +126,7 @@ mod tests {
 
     fn fdo(typ: FieldDescriptorType, num_array: usize) -> FieldDescriptor {
         FieldDescriptor {
+            simple_typ: as_type(&typ, num_array),
             typ: typ,
             num_array: num_array,
         }
@@ -185,5 +222,10 @@ mod tests {
     #[test]
     fn method_fail() {
         assert_eq!(MethodDescriptor::parse("()V()"), None);
+    }
+
+    #[test]
+    fn method_words() {
+        assert_eq!(MethodDescriptor::parse("(S[DJ)I").unwrap().words_for_params(), 4);
     }
 }
