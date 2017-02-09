@@ -37,8 +37,7 @@ impl VM {
         {
             let start_class = self.classloader.load_class(class).map_err(|err| format!("ClassLoadingError: {}", err))?;
 
-            // TODO select by descriptor as well, may be overloaded
-            let main = match start_class.method_by_name("main") {
+            let main = match start_class.method_by_signature("main", "([Ljava/lang/String;)V") {
                 Some(m) => m,
                 None => return Err("No main method found!".to_owned()),
             };
@@ -47,22 +46,21 @@ impl VM {
                 return Err(format!("invalid access flags for main: {:?}", main.access_flags()));
             }
 
-            if main.descriptor() != "([Ljava/lang/String;)V" {
-                return Err(format!("signatur for main: {}", main.descriptor()));
-            }
             class_name = start_class.name().to_owned();
         }
         // TODO push args on the stack
-        self.invoke_method(&class_name, "main", &mut Frame::dummy_frame(0));
+        self.invoke_method(&class_name,
+                           "main",
+                           "([Ljava/lang/String;)V",
+                           &mut Frame::dummy_frame(0));
 
         self.run();
         Ok(())
     }
 
-    pub fn invoke_method(&mut self, class_name: &str, method: &str, calling_frame: &mut Frame) {
+    pub fn invoke_method(&mut self, class_name: &str, method: &str, descriptor: &str, calling_frame: &mut Frame) {
         // these unwraps should be checked in the linking stage
-        // TODO select by descriptor as well, may be overloaded
-        let method = self.classloader.load_class(class_name).unwrap().method_by_name(method).unwrap();
+        let method = self.classloader.load_class(class_name).unwrap().method_by_signature(method, descriptor).unwrap();
 
         let args = &calling_frame.stack[calling_frame.sp - method.words_for_params()..calling_frame.sp];
         calling_frame.sp -= method.words_for_params();
@@ -78,6 +76,7 @@ impl VM {
 
         let mut local_vars = Vec::with_capacity(code.max_locals());
         local_vars.resize(code.max_locals(), 0);
+        local_vars[..args.len()].copy_from_slice(args);
         let mut stack = Vec::with_capacity(code.max_stack());
         stack.resize(code.max_stack(), 0);
         self.frames.push(Frame {
@@ -178,14 +177,16 @@ impl Frame {
 mod tests {
     use super::*;
 
-    fn run(class: &str, method: &str) {
+    fn run(class: &str, method: &str, native_calls: Vec<(String, String, Vec<i32>)>) {
         let classloader = ClassLoader::new("./assets");
         let mut vm = VM::new(classloader);
-        vm.invoke_method(class, method, &mut Frame::dummy_frame(0));
+        vm.invoke_method(class, method, "()V", &mut Frame::dummy_frame(0));
         vm.run();
+
+        assert_eq!(native_calls, vm.native_calls);
     }
 
     #[test]
-    fn simple() { run("TestVM", "simple"); }
+    fn simple() { run("TestVM", "simple", vec![]); }
 
 }

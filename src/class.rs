@@ -49,10 +49,10 @@ impl Class {
         })
     }
 
-    #[allow(dead_code)]
-    pub fn method_by_name(&self, name: &str) -> Option<&Method> { self.methods.iter().find(|m| m.name() == name) }
+    pub fn method_by_signature(&self, name: &str, descriptor: &str) -> Option<&Method> {
+        self.methods.iter().find(|m| m.name() == name && m.descriptor() == descriptor)
+    }
 
-    #[allow(dead_code)]
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
     pub fn super_class(&self) -> &str { &self.super_class }
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn method_main() {
         let class = get_class();
-        let method = class.method_by_name("main").unwrap();
+        let method = class.method_by_signature("main", "([Ljava/lang/String;)V").unwrap();
         assert_eq!(method.name(), "main");
         assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
         assert_eq!(method.access_flags(), PUBLIC | STATIC);
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn method_not_exists() {
-        assert!(get_class().method_by_name("unknown method").is_none());
+        assert!(get_class().method_by_signature("unknown method", "").is_none());
     }
 
     #[test]

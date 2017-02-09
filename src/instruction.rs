@@ -484,11 +484,14 @@ mod tests {
     use classfile_parser::parse_class;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    fn get_instructions(method_name: &str) -> Vec<Instruction> {
+    fn get_instructions_with_desc(method_name: &str, descriptor: &str) -> Vec<Instruction> {
         Class::from_class_file(&parse_class("./assets/TestInstruction").unwrap()).unwrap()
-            .method_by_name(method_name).unwrap()
+            .method_by_signature(method_name, descriptor).unwrap()
             .code().unwrap()
             .code().to_vec()
+    }
+    fn get_instructions(method_name: &str) -> Vec<Instruction> {
+        get_instructions_with_desc(method_name, "()V")
     }
 
     #[test]
@@ -614,7 +617,7 @@ mod tests {
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_cmp() {
-        assert_eq!(get_instructions("cmp"),
+        assert_eq!(get_instructions_with_desc("cmp", "()F"),
                   vec![FCONST_1, STORE(Float, 1), DCONST_1, STORE(Double, 2), LCONST_1, STORE(Long, 4),
                         LOAD(Double, 2), DCONST_1, DCMPG, IF(GE, 12), BIPUSH(1), GOTO(13), BIPUSH(0), STORE(Int, 6),
                         LOAD(Double, 2), DCONST_1, DCMPL, IF(LE, 20), BIPUSH(1), GOTO(21), BIPUSH(0), STORE(Int, 6),
@@ -627,7 +630,7 @@ mod tests {
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_ldc() {
-        assert_eq!(get_instructions("ldc"),
+        assert_eq!(get_instructions_with_desc("ldc", "()D"),
                    vec![LDC_INT(-1234567), STORE(Int, 0),
                         LDC_FLOAT(-1.337), STORE(Float, 1),
                         LDC_STRING("Hallo!".to_owned()), STORE(Reference, 2),
@@ -639,7 +642,7 @@ mod tests {
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_cast() {
-        assert_eq!(get_instructions("cast"),
+        assert_eq!(get_instructions_with_desc("cast", "()Z"),
                    vec![NEW("java/lang/Object".to_owned()), DUP,
                         INVOKESPECIAL(MethodRef::new("<init>",
                                                      "java/lang/Object",
@@ -656,7 +659,7 @@ mod tests {
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_field() {
-        assert_eq!(get_instructions("field"),
+        assert_eq!(get_instructions_with_desc("field", "()Ljava/lang/String;"),
                    vec![LOAD(Reference, 0),
                         GETFIELD(FieldRef::new("field",
                                                "com/mackie/rustyjvm/TestInstruction",
@@ -691,7 +694,7 @@ mod tests {
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn test_ifs() {
-        assert_eq!(get_instructions("ifs"),
+        assert_eq!(get_instructions_with_desc("ifs", "()I"),
                    vec![BIPUSH(0), STORE(Int, 1),
                         ACONST_NULL, STORE(Reference, 2),
                         LOAD(Int, 1), BIPUSH(1), IF_ICMP(GE, 9), BIPUSH(1), STORE(Int, 3),
