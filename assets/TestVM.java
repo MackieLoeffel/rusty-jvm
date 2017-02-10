@@ -13,22 +13,31 @@ public class TestVM {
     }
 
     public static void staticcall() {
-        int a = 1;
+        long a = 1;
         a = staticMethod(a);
-        nativeInt(a);
+        nativeLong(a);
     }
 
-    private static int staticMethod(int a) {
-        nativeInt(a);
+    private static long staticMethod(long a) {
+        nativeLong(a);
         a = a * 2;
-        nativeInt(a);
+        nativeLong(a);
         return a;
     }
 
     private static void mul() {
-        nativeInt(2 * 2);
-        nativeInt(0x40000001 * 4);
-        // TODO rest
+        int a = 4;
+        nativeInt(2 * a);
+        nativeInt(0x40000001 * a);
+        long l = 4L;
+        nativeLong(2L * l);
+        nativeLong(0x40000001L * l * 4);
+        nativeLong(0x4000000000000001L * l);
+        float f = 0.1f;
+        nativeFloat(f * 2f);
+        double d = 0.1;
+        nativeDouble(d * 2);
+        // TODO Test starnger float numbers?
     }
 
     private static void constants() {

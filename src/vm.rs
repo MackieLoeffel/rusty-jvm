@@ -83,7 +83,7 @@ impl VM {
             }
 
             code = method.code().expect("Method must have code");
-            println!("Code: {:?}", code);
+            // println!("Code: {:?}", code);
 
             local_vars = Vec::with_capacity(code.max_locals());
             local_vars.resize(code.max_locals(), 0);
@@ -139,9 +139,9 @@ impl VM {
                     frame.push(conv!(a.$op(b)));
                 }
                 Double => {
-                    let b: f64 = conv!(frame.pop());
-                    let a: f64 = conv!(frame.pop());
-                    frame.push(conv!(a.$op(b)));
+                    let b: f64 = conv!(frame.pop2());
+                    let a: f64 = conv!(frame.pop2());
+                    frame.push2(conv!(a.$op(b)));
                 }
                 t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
             }
@@ -169,7 +169,7 @@ impl VM {
                     }
                 }
                 MUL(t @ Int) | MUL(t @ Long) => arith_int!(t, wrapping_mul),
-                MUL(t) => arith_int!(t, mul),
+                MUL(t) => arith_float!(t, mul),
                 // MUL(Int) => {
                 // let a: i32 = conv!(frame.pop());
                 // let b: i32 = conv!(frame.pop());
@@ -308,20 +308,47 @@ mod tests {
     }
 
     #[test]
+    fn print_class() {
+        let mut classloader = ClassLoader::new("./assets");
+        let class = classloader.load_class("TestVM").unwrap();
+        for method in class.methods() {
+            println!("Method {} {}:", method.descriptor(), method.name());
+            match method.code() {
+                Some(c) => {
+                    for instr in c.code() {
+                        println!("  {:?}", instr);
+                    }
+                }
+                None => println!("  No code!"),
+            }
+            println!();
+        }
+    }
+
+    #[test]
     fn simple() { run("TestVM", "simple", vec![("nativeInt", vec![1])]); }
 
     #[test]
     fn staticcall() {
         run("TestVM",
             "staticcall",
-            vec![("nativeInt", vec![1]), ("nativeInt", vec![2]), ("nativeInt", vec![2])]);
+            vec![("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeLong", arg2!(2i64))]);
     }
 
     #[test]
     fn mul() {
         run("TestVM",
             "mul",
-            vec![("nativeInt", vec![4]), ("nativeInt", vec![4])]);
+            vec![("nativeInt", arg1!(8)),
+                 ("nativeInt", arg1!(4)),
+                 ("nativeLong", arg2!(8i64)),
+                 ("nativeLong", arg2!(0x400000010i64)),
+                 ("nativeLong", arg2!(4i64)),
+                 ("nativeFloat", arg1!(0.2f32)),
+                 ("nativeDouble", arg2!(0.2f64)),
+            ]);
     }
 
     #[test]

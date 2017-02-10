@@ -33,7 +33,7 @@ impl ClassLoader {
     pub fn load_class(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
         unsafe {
             if let Some(ref c) = (*self.loaded_classes.get()).get(name) {
-                println!("Used class from cache: {}", c.name());
+                // println!("Used class from cache: {}", c.name());
                 return Ok(c);
             }
         }
@@ -41,7 +41,7 @@ impl ClassLoader {
     }
 
     pub fn load_file(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
-        println!("Loading class: {}", name);
+        // println!("Loading class: {}", name);
         let classfilename = format!("{}.class", name);
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,

@@ -55,6 +55,8 @@ impl Class {
 
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
+    pub fn methods(&self) -> &Vec<Method> { &self.methods }
+    #[allow(dead_code)]
     pub fn super_class(&self) -> &str { &self.super_class }
 }
 
