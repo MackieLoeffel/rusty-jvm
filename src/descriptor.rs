@@ -92,15 +92,12 @@ impl FieldDescriptor {
                ));
         fd_eof(desc).to_result().ok()
     }
-
 }
 
 impl Deref for FieldDescriptor {
     type Target = Type;
 
-    fn deref(&self) -> &Type {
-        &self.simple_typ
-    }
+    fn deref(&self) -> &Type { &self.simple_typ }
 }
 
 impl MethodDescriptor {
@@ -112,9 +109,7 @@ impl MethodDescriptor {
         md_eof(desc).to_result().ok()
     }
 
-    pub fn words_for_params(&self) -> usize {
-        self.params.iter().map(|e| e.word_size()).sum()
-    }
+    pub fn words_for_params(&self) -> usize { self.params.iter().map(|e| e.word_size()).sum() }
 }
 
 #[cfg(test)]
@@ -226,6 +221,7 @@ mod tests {
 
     #[test]
     fn method_words() {
-        assert_eq!(MethodDescriptor::parse("(S[DJ)I").unwrap().words_for_params(), 4);
+        assert_eq!(MethodDescriptor::parse("(S[DJ)I").unwrap().words_for_params(),
+                   4);
     }
 }

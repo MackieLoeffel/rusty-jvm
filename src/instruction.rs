@@ -492,9 +492,7 @@ mod tests {
             .code().unwrap()
             .code().to_vec()
     }
-    fn get_instructions(method_name: &str) -> Vec<Instruction> {
-        get_instructions_with_desc(method_name, "()V")
-    }
+    fn get_instructions(method_name: &str) -> Vec<Instruction> { get_instructions_with_desc(method_name, "()V") }
 
     #[test]
     #[cfg_attr(rustfmt, rustfmt_skip)]

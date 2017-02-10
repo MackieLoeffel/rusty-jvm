@@ -19,7 +19,7 @@ const MAX_MINOR_VERSION: u16 = 0;
 pub struct ClassLoader {
     load_dir: PathBuf,
     // see http://stackoverflow.com/a/25190401
-    loaded_classes: UnsafeCell<HashMap<String, Class>>
+    loaded_classes: UnsafeCell<HashMap<String, Class>>,
 }
 
 impl ClassLoader {
@@ -71,7 +71,7 @@ impl ClassLoader {
         };
 
         let class_name = class.name().to_owned();
-        unsafe{
+        unsafe {
             assert!((*self.loaded_classes.get()).insert(class_name.clone(), class).is_none());
 
             Ok((*self.loaded_classes.get()).get(&class_name).unwrap())
