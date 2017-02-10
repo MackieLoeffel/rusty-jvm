@@ -1,8 +1,6 @@
 #!/bin/sh
 
-for i in assets/*.java; do
-    javac -target 1.2 -source 1.2 "$i"
-done
+javac -target 1.2 -source 1.2 assets/*.java
 
 cargo test -- --nocapture # && cargo run
 # cargo run

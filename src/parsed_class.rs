@@ -43,6 +43,10 @@ impl MethodRef {
             descriptor: descriptor.to_owned(),
         }
     }
+
+    pub fn name(&self) -> &str { &self.name }
+    pub fn class(&self) -> &str { &self.class }
+    pub fn descriptor(&self) -> &str { &self.descriptor }
 }
 
 impl ParsedClass for ClassFile {

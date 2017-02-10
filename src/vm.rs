@@ -3,6 +3,11 @@ use class_loader::ClassLoader;
 use instruction::{Instruction, LocalVarRef, CodeAddress};
 use instruction::Instruction::*;
 use instruction::Type::*;
+use parsed_class::MethodRef;
+use std::mem;
+use std::cmp::max;
+#[allow(unused_imports)] // this import is actually needed
+use std::ops::Deref;
 
 pub struct VM {
     classloader: ClassLoader,
@@ -48,13 +53,14 @@ impl VM {
 
             class_name = start_class.name().to_owned();
         }
+        let mut start_frame = Frame::dummy_frame(0);
         // TODO push args on the stack
         self.invoke_method(&class_name,
                            "main",
                            "([Ljava/lang/String;)V",
-                           &mut Frame::dummy_frame(0));
+                           &mut start_frame);
 
-        self.run();
+        self.run(start_frame);
         Ok(())
     }
 
@@ -62,37 +68,52 @@ impl VM {
         // these unwraps should be checked in the linking stage
         let method = self.classloader.load_class(class_name).unwrap().method_by_signature(method, descriptor).unwrap();
 
-        let args = &calling_frame.stack[calling_frame.sp - method.words_for_params()..calling_frame.sp];
-        calling_frame.sp -= method.words_for_params();
+        let mut local_vars;
+        let code;
+        {
+            let args = &calling_frame.stack[calling_frame.sp - method.words_for_params()..calling_frame.sp];
+            calling_frame.sp -= method.words_for_params();
 
-        if method.access_flags().contains(NATIVE) {
-            self.native_calls.push((method.name().to_owned(), method.descriptor().to_owned(), args.to_vec()));
-            // TODO real handling of call
-            return;
+            if method.access_flags().contains(NATIVE) {
+                self.native_calls.push((method.name().to_owned(), method.descriptor().to_owned(), args.to_vec()));
+                // TODO real handling of call
+                return;
+            }
+
+            code = method.code().expect("Method must have code");
+            println!("Code: {:?}", code);
+
+            local_vars = Vec::with_capacity(code.max_locals());
+            local_vars.resize(code.max_locals(), 0);
+            local_vars[..args.len()].copy_from_slice(args);
         }
-
-        let code = method.code().expect("Method must have code");
-        println!("Code: {:?}", code);
-
-        let mut local_vars = Vec::with_capacity(code.max_locals());
-        local_vars.resize(code.max_locals(), 0);
-        local_vars[..args.len()].copy_from_slice(args);
         let mut stack = Vec::with_capacity(code.max_stack());
         stack.resize(code.max_stack(), 0);
-        self.frames.push(Frame {
+
+        let mut new_frame = Frame {
             ip: 0,
             sp: 0,
             local_vars: local_vars,
             stack: stack,
             code: code.code().clone(),
-        });
+        };
+        mem::swap(&mut new_frame, calling_frame);
+        self.frames.push(new_frame);
     }
 
-    fn run(&mut self) {
-        let mut frame = self.frames.pop().expect("No frame supplied for run");
+    pub fn invoke_method_ref(&mut self, method: &MethodRef, calling_frame: &mut Frame) {
+        self.invoke_method(method.class(),
+                           method.name(),
+                           method.descriptor(),
+                           calling_frame)
+    }
+
+    fn run(&mut self, start_frame: Frame) {
+        self.frames.pop().expect("Expected dummy frame on frame stack");
+        assert_eq!(self.frames.len(), 0);
+        let mut frame = start_frame;
         loop {
             match frame.next() {
-                BIPUSH(i) => frame.push(i as i32),
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
                         // TODO test
@@ -127,6 +148,10 @@ impl VM {
                             frame.push(v2);
                         }
                     }
+                }
+                BIPUSH(i) => frame.push(i as i32),
+                INVOKESTATIC(method) => {
+                    self.invoke_method_ref(&method, &mut frame);
                 }
                 c @ _ => panic!("Not implemented Instruction {:?}", c),
             }
@@ -177,16 +202,30 @@ impl Frame {
 mod tests {
     use super::*;
 
-    fn run(class: &str, method: &str, native_calls: Vec<(String, String, Vec<i32>)>) {
+    fn run(class: &str, method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
         let classloader = ClassLoader::new("./assets");
         let mut vm = VM::new(classloader);
-        vm.invoke_method(class, method, "()V", &mut Frame::dummy_frame(0));
-        vm.run();
+        let mut start_frame = Frame::dummy_frame(0);
+        vm.invoke_method(class, method, "()V", &mut start_frame);
+        vm.run(start_frame);
 
-        assert_eq!(native_calls, vm.native_calls);
+        for index in 0..max(native_calls.len(), vm.native_calls.len()) {
+            if index >= native_calls.len() {
+                println!("[{}] Additional Calls: {:?}",
+                         method,
+                         &vm.native_calls[index..]);
+                panic!("FAIL");
+            }
+            if index >= vm.native_calls.len() {
+                println!("[{}] Missing Calls: {:?}", method, &native_calls[index..]);
+                panic!("FAIL");
+            }
+            assert_eq!((native_calls[index].0, &native_calls[index].1),
+                       ((&vm.native_calls[index].0).deref(), &vm.native_calls[index].2));
+        }
     }
 
     #[test]
-    fn simple() { run("TestVM", "simple", vec![]); }
+    fn simple() { run("TestVM", "simple", vec![("nativeInt", vec![1])]); }
 
 }
