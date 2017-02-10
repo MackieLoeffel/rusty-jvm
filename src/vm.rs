@@ -1,11 +1,12 @@
 use classfile_parser::method_info::{PUBLIC, STATIC, NATIVE};
 use class_loader::ClassLoader;
-use instruction::{Instruction, LocalVarRef, CodeAddress};
+use instruction::{Instruction, LocalVarRef};
 use instruction::Instruction::*;
 use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
 use std::cmp::max;
+use std::ops::Mul;
 
 // USE WITH CARE
 macro_rules! conv { ($val: expr) => {{unsafe {mem::transmute($val)}}} }
@@ -82,7 +83,7 @@ impl VM {
             }
 
             code = method.code().expect("Method must have code");
-            // println!("Code: {:?}", code);
+            println!("Code: {:?}", code);
 
             local_vars = Vec::with_capacity(code.max_locals());
             local_vars.resize(code.max_locals(), 0);
@@ -113,31 +114,67 @@ impl VM {
         self.frames.pop().expect("Expected dummy frame on frame stack");
         assert_eq!(self.frames.len(), 0);
         let mut frame = start_frame;
+
+        macro_rules! arith_int(($typ: ident, $op:ident) => {{
+            match $typ {
+                Int => {
+                    let b: i32 = conv!(frame.pop());
+                    let a: i32 = conv!(frame.pop());
+                    frame.push(conv!(a.$op(b)));
+                }
+                Long => {
+                    let b: i64 = conv!(frame.pop2());
+                    let a: i64 = conv!(frame.pop2());
+                    frame.push2(conv!(a.$op(b)));
+                }
+                t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
+            }
+        }});
+
+        macro_rules! arith_float(($typ: ident, $op:ident) => {{
+            match $typ {
+                Float => {
+                    let b: f32 = conv!(frame.pop());
+                    let a: f32 = conv!(frame.pop());
+                    frame.push(conv!(a.$op(b)));
+                }
+                Double => {
+                    let b: f64 = conv!(frame.pop());
+                    let a: f64 = conv!(frame.pop());
+                    frame.push(conv!(a.$op(b)));
+                }
+                t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
+            }
+        }});
+
         loop {
             match frame.next() {
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
                         // TODO test
+                        let v = frame.pop2();
+                        frame.store2(idx, v);
+                    } else {
                         let v = frame.pop();
-                        frame.store(idx + 1, v);
+                        frame.store(idx, v);
                     }
-                    let v = frame.pop();
-                    frame.store(idx, v);
                 }
                 LOAD(typ, idx) => {
-                    let v = frame.load(idx);
-                    frame.push(v);
                     if typ.is_double_sized() {
-                        // TODO test
-                        let v2 = frame.load(idx + 1);
-                        frame.push(v2);
+                        let v = frame.load2(idx);
+                        frame.push2(v);
+                    } else {
+                        let v = frame.load(idx);
+                        frame.push(v);
                     }
                 }
-                MUL(Int) => {
-                    let a: i32 = conv!(frame.pop());
-                    let b: i32 = conv!(frame.pop());
-                    frame.push(a * b);
-                }
+                MUL(t @ Int) | MUL(t @ Long) => arith_int!(t, wrapping_mul),
+                MUL(t) => arith_int!(t, mul),
+                // MUL(Int) => {
+                // let a: i32 = conv!(frame.pop());
+                // let b: i32 = conv!(frame.pop());
+                // frame.push(a.wrapping_mul(b));
+                // }
                 RETURN(o) => {
                     if self.frames.is_empty() {
                         return;
@@ -146,16 +183,31 @@ impl VM {
                     frame = self.frames.pop().unwrap();
 
                     if let Some(typ) = o {
-                        let v = old_frame.pop();
-                        frame.push(v);
                         if typ.is_double_sized() {
                             // TODO test
-                            let v2 = old_frame.pop();
-                            frame.push(v2);
+                            let v2 = old_frame.pop2();
+                            frame.push2(v2);
+                        } else {
+                            let v = old_frame.pop();
+                            frame.push(v);
                         }
                     }
                 }
+                ACONST_NULL => frame.push(0),
+                DCONST_0 => frame.push2(conv!(0f64)),
+                DCONST_1 => frame.push2(conv!(1f64)),
+                FCONST_0 => frame.push(conv!(0f32)),
+                FCONST_1 => frame.push(conv!(1f32)),
+                FCONST_2 => frame.push(conv!(2f32)),
+                LCONST_0 => frame.push2(conv!(0i64)),
+                LCONST_1 => frame.push2(conv!(1i64)),
                 BIPUSH(i) => frame.push(i as i32),
+                SIPUSH(i) => frame.push(i as i32),
+                LDC_INT(i) => frame.push(i),
+                LDC_FLOAT(f) => frame.push(conv!(f)),
+                // TODO LDC_STRING(String) => frame.push(),
+                LDC_DOUBLE(f) => frame.push2(conv!(f)),
+                LDC_LONG(i) => frame.push2(conv!(i)),
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
                 }
@@ -192,20 +244,44 @@ impl Frame {
     }
 
     #[inline(always)]
+    fn push2(&mut self, val: [i32; 2]) {
+        self.push(val[0]);
+        self.push(val[1]);
+    }
+
+    #[inline(always)]
     fn pop(&mut self) -> i32 {
         self.sp -= 1;
         self.stack[self.sp]
     }
 
     #[inline(always)]
+    fn pop2(&mut self) -> [i32; 2] {
+        let b = self.pop();
+        let a = self.pop();
+        [a, b]
+    }
+
+    #[inline(always)]
     fn store(&mut self, index: LocalVarRef, val: i32) { self.local_vars[index as usize] = val; }
 
     #[inline(always)]
+    fn store2(&mut self, index: LocalVarRef, val: [i32; 2]) {
+        self.store(index, val[0]);
+        self.store(index + 1, val[1]);
+    }
+
+    #[inline(always)]
     fn load(&self, index: LocalVarRef) -> i32 { self.local_vars[index as usize] }
+
+    #[inline(always)]
+    fn load2(&mut self, index: LocalVarRef) -> [i32; 2] { [self.load(index), self.load(index + 1)] }
 }
 
 #[cfg(test)]
 mod tests {
+    macro_rules! arg1 { ($val: expr) => {{vec![unsafe {mem::transmute::<_, i32>($val)}]}} }
+    macro_rules! arg2 { ($val: expr) => {{unsafe {mem::transmute::<_, [i32; 2]>($val)}.to_vec()}} }
     use super::*;
 
     fn run(class: &str, method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
@@ -239,5 +315,32 @@ mod tests {
         run("TestVM",
             "staticcall",
             vec![("nativeInt", vec![1]), ("nativeInt", vec![2]), ("nativeInt", vec![2])]);
+    }
+
+    #[test]
+    fn mul() {
+        run("TestVM",
+            "mul",
+            vec![("nativeInt", vec![4]), ("nativeInt", vec![4])]);
+    }
+
+    #[test]
+    fn constants() {
+        run("TestVM",
+            "constants",
+            vec![("nativeInt", arg1!(0)),
+                 ("nativeInt", arg1!(1337)),
+                 ("nativeInt", arg1!(0x4000000)),
+                 ("nativeFloat", arg1!(0f32)),
+                 ("nativeFloat", arg1!(1f32)),
+                 ("nativeFloat", arg1!(2f32)),
+                 ("nativeFloat", arg1!(1.337f32)),
+                 ("nativeDouble", arg2!(0f64)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(1.337f64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1337i64)),
+                 ("nativeString", arg1!(0))]);
     }
 }
