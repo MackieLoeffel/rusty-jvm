@@ -27,6 +27,8 @@ pub enum Instruction {
     // D2F, D2I,...
     CONVERT(Type, Type),
 
+    // TODO thick about spliiting these constructors up
+    //  => benchmark
     ADD(Type),
     DIV(Type),
     MUL(Type),

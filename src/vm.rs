@@ -6,8 +6,9 @@ use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
 use std::cmp::max;
-#[allow(unused_imports)] // this import is actually needed
-use std::ops::Deref;
+
+// USE WITH CARE
+macro_rules! conv { ($val: expr) => {{unsafe {mem::transmute($val)}}} }
 
 pub struct VM {
     classloader: ClassLoader,
@@ -81,7 +82,7 @@ impl VM {
             }
 
             code = method.code().expect("Method must have code");
-            println!("Code: {:?}", code);
+            // println!("Code: {:?}", code);
 
             local_vars = Vec::with_capacity(code.max_locals());
             local_vars.resize(code.max_locals(), 0);
@@ -131,6 +132,11 @@ impl VM {
                         let v2 = frame.load(idx + 1);
                         frame.push(v2);
                     }
+                }
+                MUL(Int) => {
+                    let a: i32 = conv!(frame.pop());
+                    let b: i32 = conv!(frame.pop());
+                    frame.push(a * b);
                 }
                 RETURN(o) => {
                     if self.frames.is_empty() {
@@ -221,11 +227,17 @@ mod tests {
                 panic!("FAIL");
             }
             assert_eq!((native_calls[index].0, &native_calls[index].1),
-                       ((&vm.native_calls[index].0).deref(), &vm.native_calls[index].2));
+                       (vm.native_calls[index].0.as_str(), &vm.native_calls[index].2));
         }
     }
 
     #[test]
     fn simple() { run("TestVM", "simple", vec![("nativeInt", vec![1])]); }
 
+    #[test]
+    fn staticcall() {
+        run("TestVM",
+            "staticcall",
+            vec![("nativeInt", vec![1]), ("nativeInt", vec![2]), ("nativeInt", vec![2])]);
+    }
 }

@@ -44,8 +44,11 @@ impl MethodRef {
         }
     }
 
+    #[inline(always)]
     pub fn name(&self) -> &str { &self.name }
+    #[inline(always)]
     pub fn class(&self) -> &str { &self.class }
+    #[inline(always)]
     pub fn descriptor(&self) -> &str { &self.descriptor }
 }
 

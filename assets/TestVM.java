@@ -8,4 +8,16 @@ public class TestVM {
         nativeInt(a);
     }
 
+    public static void staticcall() {
+        int a = 1;
+        a = staticMethod(a);
+        nativeInt(a);
+    }
+
+    private static int staticMethod(int a) {
+        nativeInt(a);
+        a = a * 2;
+        nativeInt(a);
+        return a;
+    }
 }
