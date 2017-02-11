@@ -200,6 +200,51 @@ impl VM {
                         t @ _ => panic!("Operation NEG is not implemented for typ {:?}", t),
                     }
                 }
+                SHL(t) => {
+                    match t {
+                        Int => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: i32 = conv!(frame.pop());
+                            frame.push(conv!(a.wrapping_shl(b)));
+                        }
+                        Long => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: i64 = conv!(frame.pop2());
+                            frame.push2(conv!(a.wrapping_shl(b)));
+                        }
+                        t @ _ => panic!("Operation SHL is not implemented for typ {:?}", t),
+                    }
+                }
+                SHR(t) => {
+                    match t {
+                        Int => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: i32 = conv!(frame.pop());
+                            frame.push(conv!(a.wrapping_shr(b)));
+                        }
+                        Long => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: i64 = conv!(frame.pop2());
+                            frame.push2(conv!(a.wrapping_shr(b)));
+                        }
+                        t @ _ => panic!("Operation SHR is not implemented for typ {:?}", t),
+                    }
+                }
+                USHR(t) => {
+                    match t {
+                        Int => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: u32 = conv!(frame.pop());
+                            frame.push(conv!(a.wrapping_shr(b)));
+                        }
+                        Long => {
+                            let b: u32 = conv!(frame.pop());
+                            let a: u64 = conv!(frame.pop2());
+                            frame.push2(conv!(a.wrapping_shr(b)));
+                        }
+                        t @ _ => panic!("Operation USHR is not implemented for typ {:?}", t),
+                    }
+                }
                 RETURN(o) => {
                     if self.frames.is_empty() {
                         return;
@@ -490,6 +535,63 @@ mod tests {
                  ("nativeFloat", arg1!(-0.1f32)),
                  ("nativeDouble", arg2!(-0.1f64)),
                  ("nativeDouble", arg2!(-0.1f64))]);
+    }
+
+    #[test]
+    fn shift() {
+        run("TestVM",
+            "shift",
+            vec![("nativeInt", arg1!(0xF0)),
+                 ("nativeInt", arg1!(0xF0)),
+                 ("nativeInt", arg1!(0x1E)),
+                 ("nativeInt", arg1!(0x1E)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeInt", arg1!(0)),
+                 ("nativeInt", arg1!(0)),
+                 ("nativeLong", arg2!(0xF0i64)),
+                 ("nativeLong", arg2!(0xF0i64)),
+                 ("nativeLong", arg2!(0x1Ei64)),
+                 ("nativeLong", arg2!(0x1Ei64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeLong", arg2!(0i64)),
+
+                 ("nativeInt", arg1!(0xF)),
+                 ("nativeInt", arg1!(0xF)),
+                 ("nativeInt", arg1!(0x7F)),
+                 ("nativeInt", arg1!(0x7F)),
+                 ("nativeInt", arg1!(0xC0000000u32)),
+                 ("nativeInt", arg1!(0xC0000000u32)),
+                 ("nativeInt", arg1!(-1)),
+                 ("nativeInt", arg1!(-1)),
+                 ("nativeLong", arg2!(0xFi64)),
+                 ("nativeLong", arg2!(0xFi64)),
+                 ("nativeLong", arg2!(0x7Fi64)),
+                 ("nativeLong", arg2!(0x7Fi64)),
+                 ("nativeLong", arg2!(0xC000000000000000u64)),
+                 ("nativeLong", arg2!(0xC000000000000000u64)),
+                 ("nativeLong", arg2!(-1i64)),
+                 ("nativeLong", arg2!(-1i64)),
+
+                 ("nativeInt", arg1!(0xF)),
+                 ("nativeInt", arg1!(0xF)),
+                 ("nativeInt", arg1!(0x7F)),
+                 ("nativeInt", arg1!(0x7F)),
+                 ("nativeInt", arg1!(0x40000000u32)),
+                 ("nativeInt", arg1!(0x40000000u32)),
+                 ("nativeInt", arg1!(0x7FFFFFFF)),
+                 ("nativeInt", arg1!(0x7FFFFFFF)),
+                 ("nativeLong", arg2!(0xFi64)),
+                 ("nativeLong", arg2!(0xFi64)),
+                 ("nativeLong", arg2!(0x7Fi64)),
+                 ("nativeLong", arg2!(0x7Fi64)),
+                 ("nativeLong", arg2!(0x4000000000000000u64)),
+                 ("nativeLong", arg2!(0x4000000000000000u64)),
+                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFFi64)),
+                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFFi64)),
+            ]);
     }
 
     #[test]

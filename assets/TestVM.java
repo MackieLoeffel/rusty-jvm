@@ -189,6 +189,80 @@ public class TestVM {
         // TODO Test starnger float numbers?
     }
 
+    private static void shift() {
+        // shift left
+        int a = 0xF;
+        nativeInt(0xF << 4);
+        nativeInt(a << 4);
+        nativeInt(0xF << 33);
+        nativeInt(a << 33);
+        a = 1;
+        nativeInt(1 << 31);
+        nativeInt(a << 31);
+        a = 0x80000000;
+        nativeInt(0x80000000 << 1);
+        nativeInt(a << 1);
+        long l = 0xFL;
+        nativeLong(0xFL << 4);
+        nativeLong(l << 4);
+        nativeLong(0xFL << 65);
+        nativeLong(l << 65);
+        l = 1;
+        nativeLong(1L << 63);
+        nativeLong(l << 63);
+        l = 0x8000000000000000L;
+        nativeLong(0x8000000000000000L << 1);
+        nativeLong(l << 1);
+
+        // shift right
+        a = 0xFF;
+        nativeInt(0xFF >> 4);
+        nativeInt(a >> 4);
+        nativeInt(0xFF >> 33);
+        nativeInt(a >> 33);
+        a = 0x80000000;
+        nativeInt(0x80000000 >> 1);
+        nativeInt(a >> 1);
+        a = -1;
+        nativeInt(-1 >> 1);
+        nativeInt(a >> 1);
+        l = 0xFFL;
+        nativeLong(0xFFL >> 4);
+        nativeLong(l >> 4);
+        nativeLong(0xFFL >> 65);
+        nativeLong(l >> 65);
+        l = 0x8000000000000000L;
+        nativeLong(0x8000000000000000L >> 1);
+        nativeLong(l >> 1);
+        l = -1;
+        nativeLong(-1 >> 1);
+        nativeLong(l >> 1);
+
+        // unsigned shift right
+        a = 0xFF;
+        nativeInt(0xFF >>> 4);
+        nativeInt(a >>> 4);
+        nativeInt(0xFF >>> 33);
+        nativeInt(a >>> 33);
+        a = 0x80000000;
+        nativeInt(0x80000000 >>> 1);
+        nativeInt(a >>> 1);
+        a = -1;
+        nativeInt(-1 >>> 1);
+        nativeInt(a >>> 1);
+        l = 0xFFL;
+        nativeLong(0xFFL >>> 4);
+        nativeLong(l >>> 4);
+        nativeLong(0xFFL >>> 65);
+        nativeLong(l >>> 65);
+        l = 0x8000000000000000L;
+        nativeLong(0x8000000000000000L >>> 1);
+        nativeLong(l >>> 1);
+        l = -1;
+        nativeLong(-1L >>> 1);
+        nativeLong(l >>> 1);
+    }
+
     private static void constants() {
         nativeInt(0);
         nativeInt(1337);
