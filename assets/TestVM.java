@@ -263,6 +263,23 @@ public class TestVM {
         nativeLong(l >>> 1);
     }
 
+    private static void bitops() {
+        int a = 12; // 0b1100
+        nativeInt(12 & 10); // 0b1010
+        nativeInt(a & 10);
+        nativeInt(12 | 10);
+        nativeInt(a | 10);
+        nativeInt(12 ^ 10);
+        nativeInt(a ^ 10);
+        long l = 12L;
+        nativeLong(12L & 10L);
+        nativeLong(l & 10L);
+        nativeLong(12L | 10L);
+        nativeLong(l | 10L);
+        nativeLong(12L ^ 10L);
+        nativeLong(l ^ 10L);
+    }
+
     private static void constants() {
         nativeInt(0);
         nativeInt(1337);

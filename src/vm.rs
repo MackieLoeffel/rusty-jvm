@@ -6,7 +6,7 @@ use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
 use std::cmp::max;
-use std::ops::{Mul, Add, Div, Sub, Rem};
+use std::ops::{Mul, Add, Div, Sub, Rem, BitAnd, BitOr, BitXor};
 
 // USE WITH CARE
 macro_rules! conv { ($val: expr) => {{unsafe {mem::transmute($val)}}} }
@@ -179,6 +179,9 @@ impl VM {
                 DIV(t) => arith_float!(t, div),
                 REM(t @ Int) | REM(t @ Long) => arith_int!(t, wrapping_rem),
                 REM(t) => arith_float!(t, rem),
+                AND(t) => arith_int!(t, bitand),
+                OR(t) => arith_int!(t, bitor),
+                XOR(t) => arith_int!(t, bitxor),
                 NEG(t) => {
                     match t {
                         Int => {
@@ -590,8 +593,25 @@ mod tests {
                  ("nativeLong", arg2!(0x4000000000000000u64)),
                  ("nativeLong", arg2!(0x4000000000000000u64)),
                  ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFFi64)),
-                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFFi64)),
-            ]);
+                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFFi64))]);
+    }
+
+    #[test]
+    fn bitops() {
+        run("TestVM",
+            "bitops",
+            vec![("nativeInt", arg1!(0b1000)),
+                 ("nativeInt", arg1!(0b1000)),
+                 ("nativeInt", arg1!(0b1110)),
+                 ("nativeInt", arg1!(0b1110)),
+                 ("nativeInt", arg1!(0b0110)),
+                 ("nativeInt", arg1!(0b0110)),
+                 ("nativeLong", arg2!(0b1000i64)),
+                 ("nativeLong", arg2!(0b1000i64)),
+                 ("nativeLong", arg2!(0b1110i64)),
+                 ("nativeLong", arg2!(0b1110i64)),
+                 ("nativeLong", arg2!(0b0110i64)),
+                 ("nativeLong", arg2!(0b0110i64))]);
     }
 
     #[test]
