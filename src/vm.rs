@@ -146,6 +146,11 @@ impl VM {
                 t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
             }
         }});
+        macro_rules! convert(($from_typ: ident, $pop: ident, $to_typ: ident, $push: ident) => {{
+            let a: $from_typ = conv!(frame.$pop());
+            frame.$push(conv!((a as $to_typ)));
+        }});
+
 
         loop {
             match frame.next() {
@@ -178,54 +183,18 @@ impl VM {
                     frame.push(a as i16 as i32);
                 }
 
-                CONVERT(Int, Long) => {
-                    let a = frame.pop();
-                    frame.push2(conv!(a as i64));
-                }
-                CONVERT(Int, Float) => {
-                    let a = frame.pop();
-                    frame.push(conv!(a as f32));
-                }
-                CONVERT(Int, Double) => {
-                    let a = frame.pop();
-                    frame.push2(conv!(a as f64));
-                }
-                CONVERT(Long, Int) => {
-                    let a: i64 = conv!(frame.pop2());
-                    frame.push(conv!(a as i32));
-                }
-                CONVERT(Long, Float) => {
-                    let a: i64 = conv!(frame.pop2());
-                    frame.push(conv!(a as f32));
-                }
-                CONVERT(Long, Double) => {
-                    let a: i64 = conv!(frame.pop2());
-                    frame.push2(conv!(a as f64));
-                }
-                CONVERT(Float, Int) => {
-                    let a: f32 = conv!(frame.pop());
-                    frame.push(conv!(a as i32));
-                }
-                CONVERT(Float, Long) => {
-                    let a: f32 = conv!(frame.pop());
-                    frame.push2(conv!(a as i64));
-                }
-                CONVERT(Float, Double) => {
-                    let a: f32 = conv!(frame.pop());
-                    frame.push2(conv!(a as f64));
-                }
-                CONVERT(Double, Int) => {
-                    let a: f64 = conv!(frame.pop2());
-                    frame.push(conv!(a as i32));
-                }
-                CONVERT(Double, Long) => {
-                    let a: f64 = conv!(frame.pop2());
-                    frame.push2(conv!(a as i64));
-                }
-                CONVERT(Double, Float) => {
-                    let a: f64 = conv!(frame.pop2());
-                    frame.push(conv!(a as f32));
-                }
+                CONVERT(Int, Long) => convert!(i32, pop, i64, push2),
+                CONVERT(Int, Float) => convert!(i32, pop, f32, push),
+                CONVERT(Int, Double) => convert!(i32, pop, f64, push2),
+                CONVERT(Long, Int) => convert!(i64, pop2, i32, push),
+                CONVERT(Long, Float) => convert!(i64, pop2, f32, push),
+                CONVERT(Long, Double) => convert!(i64, pop2, f64, push2),
+                CONVERT(Float, Int) => convert!(f32, pop, i32, push),
+                CONVERT(Float, Long) => convert!(f32, pop, i64, push2),
+                CONVERT(Float, Double) => convert!(f32, pop, f64, push2),
+                CONVERT(Double, Int) => convert!(f64, pop2, i32, push),
+                CONVERT(Double, Long) => convert!(f64, pop2, i64, push2),
+                CONVERT(Double, Float) => convert!(f64, pop2, f32, push),
 
                 ADD(t @ Int) | ADD(t @ Long) => arith_int!(t, wrapping_add),
                 ADD(t) => arith_float!(t, add),
