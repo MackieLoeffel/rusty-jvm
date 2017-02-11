@@ -332,9 +332,7 @@ mod tests {
     fn staticcall() {
         run("TestVM",
             "staticcall",
-            vec![("nativeLong", arg2!(1i64)),
-                 ("nativeLong", arg2!(2i64)),
-                 ("nativeLong", arg2!(2i64))]);
+            vec![("nativeLong", arg2!(1i64)), ("nativeLong", arg2!(2i64)), ("nativeLong", arg2!(2i64))]);
     }
 
     #[test]
@@ -347,8 +345,7 @@ mod tests {
                  ("nativeLong", arg2!(0x400000010i64)),
                  ("nativeLong", arg2!(4i64)),
                  ("nativeFloat", arg1!(0.2f32)),
-                 ("nativeDouble", arg2!(0.2f64)),
-            ]);
+                 ("nativeDouble", arg2!(0.2f64))]);
     }
 
     #[test]
