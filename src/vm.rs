@@ -168,6 +168,65 @@ impl VM {
                         frame.push(v);
                     }
                 }
+
+                CONVERT(Int, Byte) => {
+                    let a = frame.pop();
+                    frame.push(a as i8 as i32);
+                }
+                CONVERT(Int, Short) => {
+                    let a = frame.pop();
+                    frame.push(a as i16 as i32);
+                }
+
+                CONVERT(Int, Long) => {
+                    let a = frame.pop();
+                    frame.push2(conv!(a as i64));
+                }
+                CONVERT(Int, Float) => {
+                    let a = frame.pop();
+                    frame.push(conv!(a as f32));
+                }
+                CONVERT(Int, Double) => {
+                    let a = frame.pop();
+                    frame.push2(conv!(a as f64));
+                }
+                CONVERT(Long, Int) => {
+                    let a: i64 = conv!(frame.pop2());
+                    frame.push(conv!(a as i32));
+                }
+                CONVERT(Long, Float) => {
+                    let a: i64 = conv!(frame.pop2());
+                    frame.push(conv!(a as f32));
+                }
+                CONVERT(Long, Double) => {
+                    let a: i64 = conv!(frame.pop2());
+                    frame.push2(conv!(a as f64));
+                }
+                CONVERT(Float, Int) => {
+                    let a: f32 = conv!(frame.pop());
+                    frame.push(conv!(a as i32));
+                }
+                CONVERT(Float, Long) => {
+                    let a: f32 = conv!(frame.pop());
+                    frame.push2(conv!(a as i64));
+                }
+                CONVERT(Float, Double) => {
+                    let a: f32 = conv!(frame.pop());
+                    frame.push2(conv!(a as f64));
+                }
+                CONVERT(Double, Int) => {
+                    let a: f64 = conv!(frame.pop2());
+                    frame.push(conv!(a as i32));
+                }
+                CONVERT(Double, Long) => {
+                    let a: f64 = conv!(frame.pop2());
+                    frame.push2(conv!(a as i64));
+                }
+                CONVERT(Double, Float) => {
+                    let a: f64 = conv!(frame.pop2());
+                    frame.push(conv!(a as f32));
+                }
+
                 ADD(t @ Int) | ADD(t @ Long) => arith_int!(t, wrapping_add),
                 ADD(t) => arith_float!(t, add),
                 SUB(t @ Int) | SUB(t @ Long) => arith_int!(t, wrapping_sub),
@@ -646,4 +705,43 @@ mod tests {
                  ("nativeLong", arg2!(1337i64)),
                  ("nativeString", arg1!(0))]);
     }
+
+    #[test]
+    fn conversions() {
+        run("TestVM",
+            "conversions",
+            vec![("nativeByte", arg1!(-1)),
+                 ("nativeByte", arg1!(-1)),
+                 ("nativeShort", arg1!(-1)),
+                 ("nativeShort", arg1!(-1)),
+
+                 ("nativeLong", arg2!(5i64)),
+                 ("nativeLong", arg2!(5i64)),
+                 ("nativeFloat", arg1!(5.0f32)),
+                 ("nativeFloat", arg1!(5.0f32)),
+                 ("nativeDouble", arg2!(5.0f64)),
+                 ("nativeDouble", arg2!(5.0f64)),
+
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeFloat", arg1!(4294967297.0f32)),
+                 ("nativeFloat", arg1!(4294967297.0f32)),
+                 ("nativeDouble", arg2!(4294967297.0f64)),
+                 ("nativeDouble", arg2!(4294967297.0f64)),
+
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeDouble", arg2!(-2.0999999046325684f64)),
+                 ("nativeDouble", arg2!(-2.0999999046325684f64)),
+
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeFloat", arg1!(-2.1f32)),
+                 ("nativeFloat", arg1!(-2.1f32))]);
+    }
+
 }

@@ -1,6 +1,8 @@
 package com.mackie.rustyjvm;
 
 public class TestVM {
+    public static native void nativeByte(byte i);
+    public static native void nativeShort(short i);
     public static native void nativeInt(int i);
     public static native void nativeLong(long i);
     public static native void nativeDouble(double i);
@@ -306,5 +308,48 @@ public class TestVM {
         nativeLong(1337L);
         nativeString(null);
         // TODO test constant string
+    }
+
+    private static void conversions() {
+        int a = 0x1FF;
+        nativeByte((byte) 0x1FF);
+        nativeByte((byte) a);
+        a = 0x1FFFF;
+        nativeShort((short) 0x1FFFF);
+        nativeShort((short) a);
+
+        // TODO test more numbers (NaN, inf,...)
+        a = 5;
+        nativeLong((long) 5);
+        nativeLong((long) a);
+        nativeFloat((float) 5);
+        nativeFloat((float) a);
+        nativeDouble((double) 5);
+        nativeDouble((double) a);
+
+        long l = 0x100000001L;
+        nativeInt((int) 0x100000001L);
+        nativeInt((int) l);
+        nativeFloat((float) 0x100000001L);
+        nativeFloat((float) l);
+        nativeDouble((double) 0x100000001L);
+        nativeDouble((double) l);
+
+        float f = -2.1f;
+        nativeInt((int) -2.1f);
+        nativeInt((int) f);
+        nativeLong((long) -2.1f);
+        nativeLong((long) f);
+        nativeDouble((double) -2.1f);
+        nativeDouble((double) f);
+
+        double d = -2.1;
+        nativeInt((int) -2.1);
+        nativeInt((int) d);
+        nativeLong((long) -2.1);
+        nativeLong((long) d);
+        nativeFloat((float) -2.1);
+        nativeFloat((float) d);
+
     }
 }
