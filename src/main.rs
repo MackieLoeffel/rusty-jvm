@@ -16,16 +16,11 @@ use class_loader::ClassLoader;
 use vm::VM;
 
 fn main() {
-    let mut classloader = ClassLoader::new("./assets");
-
-    {
-        let parsed_class = classloader.load_class("HelloWorld").unwrap();
-        println!("Class: {:?}", parsed_class);
-    }
+    let classloader = ClassLoader::new("./assets");
 
     let mut vm = VM::new(classloader);
-    match vm.start("HelloWorld", &["arg1", "arg2"]) {
-        Ok(..) => println!("Finished!"),
+    match vm.start("Jump", &["arg1", "arg2"]) {
+        Ok(..) => {},
         Err(ref err) => println!("Error running: {}", err),
     };
 }

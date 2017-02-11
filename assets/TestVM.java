@@ -2,6 +2,7 @@ package com.mackie.rustyjvm;
 
 public class TestVM {
     public static native void nativeBoolean(boolean i);
+    public static native void nativeChar(char i);
     public static native void nativeByte(byte i);
     public static native void nativeShort(short i);
     public static native void nativeInt(int i);
@@ -318,6 +319,9 @@ public class TestVM {
         a = 0x1FFFF;
         nativeShort((short) 0x1FFFF);
         nativeShort((short) a);
+        a = 0x1FFFF;
+        nativeChar((char) 0x1FFFF);
+        nativeChar((char) a);
 
         // TODO test more numbers (NaN, inf,...)
         a = 5;

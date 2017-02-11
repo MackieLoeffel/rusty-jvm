@@ -5,6 +5,7 @@ use instruction::Instruction::*;
 use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
+use std::char;
 use std::cmp::max;
 use std::ops::{Mul, Add, Div, Sub, Rem, BitAnd, BitOr, BitXor};
 
@@ -55,8 +56,9 @@ impl VM {
 
             class_name = start_class.name().to_owned();
         }
-        let mut start_frame = Frame::dummy_frame(0);
-        // TODO push args on the stack
+        let mut start_frame = Frame::dummy_frame(1);
+        start_frame.push(0); // TODO push real args on the stack
+
         self.invoke_method(&class_name,
                            "main",
                            "([Ljava/lang/String;)V",
@@ -79,6 +81,9 @@ impl VM {
             if method.access_flags().contains(NATIVE) {
                 self.native_calls.push((method.name().to_owned(), method.descriptor().to_owned(), args.to_vec()));
                 // TODO real handling of call
+                if method.name() == "dump_char" {
+                    print!("{}", char::from_u32(args[0] as u32).unwrap_or('?'));
+                }
                 return;
             }
 
@@ -181,6 +186,10 @@ impl VM {
                 CONVERT(Int, Short) => {
                     let a = frame.pop();
                     frame.push(a as i16 as i32);
+                }
+                CONVERT(Int, Char) => {
+                    let a = frame.pop();
+                    frame.push(a as u16 as i32);
                 }
 
                 CONVERT(Int, Long) => convert!(i32, pop, i64, push2),
@@ -753,6 +762,8 @@ mod tests {
                  ("nativeByte", arg1!(-1)),
                  ("nativeShort", arg1!(-1)),
                  ("nativeShort", arg1!(-1)),
+                 ("nativeChar", arg1!(0xFFFF)),
+                 ("nativeChar", arg1!(0xFFFF)),
 
                  ("nativeLong", arg2!(5i64)),
                  ("nativeLong", arg2!(5i64)),
@@ -809,6 +820,4 @@ mod tests {
                  ("nativeBoolean", arg1!(0)),
                  ("nativeBoolean", arg1!(0))]);
     }
-
-
 }
