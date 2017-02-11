@@ -298,6 +298,7 @@ impl VM {
                     let a = frame.load(var);
                     frame.store(var, a.wrapping_add(val as i32));
                 }
+
                 ACONST_NULL => frame.push(0),
                 DCONST_0 => frame.push2(conv!(0f64)),
                 DCONST_1 => frame.push2(conv!(1f64)),
@@ -313,6 +314,75 @@ impl VM {
                 // TODO LDC_STRING(String) => frame.push(),
                 LDC_DOUBLE(f) => frame.push2(conv!(f)),
                 LDC_LONG(i) => frame.push2(conv!(i)),
+
+                i @ DCMPG | i @ DCMPL => {
+                    let b: f64 = conv!(frame.pop2());
+                    let a: f64 = conv!(frame.pop2());
+                    frame.push(if a == b {
+                        0
+                    } else if a < b {
+                        -1
+                    } else if a > b {
+                        1
+                    } else {
+                        // one is NaN
+                        if i == DCMPG { 1 } else { 0 }
+                    });
+                }
+                i @ FCMPG | i @ FCMPL => {
+                    let b: f32 = conv!(frame.pop());
+                    let a: f32 = conv!(frame.pop());
+                    frame.push(if a == b {
+                        0
+                    } else if a < b {
+                        -1
+                    } else if a > b {
+                        1
+                    } else {
+                        // one is NaN
+                        if i == FCMPG { 1 } else { 0 }
+                    });
+                }
+                LCMP => {
+                    let b: i64 = conv!(frame.pop2());
+                    let a: i64 = conv!(frame.pop2());
+                    frame.push(if a == b {
+                        0
+                    } else if a < b {
+                        -1
+                    } else {
+                        1
+                    });
+                }
+
+                GOTO(dest) => frame.ip = dest as usize,
+                IF_ACMP(equal, dest) => {
+                    let b = frame.pop();
+                    let a = frame.pop();
+                    if (a == b) == equal {
+                        frame.ip = dest as usize;
+                    }
+                }
+                IF_ICMP(comp, dest) => {
+                    let b = frame.pop();
+                    let a = frame.pop();
+                    if comp.compare(a, b) {
+                        frame.ip = dest as usize;
+                    }
+                }
+                IF(comp, dest) => {
+                    let a = frame.pop();
+                    if comp.compare(a, 0) {
+                        frame.ip = dest as usize;
+                    }
+                }
+                IFNULL(equal, dest) => {
+                    let a = frame.pop();
+                    if (a == 0) == equal {
+                        frame.ip = dest as usize;
+                    }
+                }
+
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
                 }
@@ -712,5 +782,33 @@ mod tests {
                  ("nativeFloat", arg1!(-2.1f32)),
                  ("nativeFloat", arg1!(-2.1f32))]);
     }
+
+    #[test]
+    fn jumps() {
+        run("TestVM",
+            "jumps",
+            vec![("nativeInt", arg1!(-10)),
+                 ("nativeInt", arg1!(-9)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(2)),
+                 ("nativeInt", arg1!(4)),
+                 ("nativeInt", arg1!(9)),
+                 ("nativeInt", arg1!(10)),
+                 ("nativeInt", arg1!(11)),
+                 ("nativeInt", arg1!(12)),
+                 ("nativeInt", arg1!(14)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0))]);
+    }
+
 
 }

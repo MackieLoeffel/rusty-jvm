@@ -46,12 +46,6 @@ pub enum Instruction {
     USHR(Type),
     XOR(Type),
 
-    DCMPG,
-    DCMPL,
-    FCMPG,
-    FCMPL,
-    LCMP,
-
     ACONST_NULL,
     DCONST_0,
     DCONST_1,
@@ -83,6 +77,12 @@ pub enum Instruction {
     GETSTATIC(FieldRef),
     PUTFIELD(FieldRef),
     PUTSTATIC(FieldRef),
+
+    DCMPG,
+    DCMPL,
+    FCMPG,
+    FCMPL,
+    LCMP,
 
     GOTO(CodeAddress),
     // TODO: find java code, which generates jsr and ret (finally doesn't)
@@ -152,6 +152,20 @@ pub enum Comparison {
     LE,
     LT,
     NE,
+}
+
+impl Comparison {
+    #[inline(always)]
+    pub fn compare(&self, a: i32, b: i32) -> bool {
+        match *self {
+            Comparison::EQ => a == b,
+            Comparison::GE => a >= b,
+            Comparison::GT => a > b,
+            Comparison::LE => a <= b,
+            Comparison::LT => a < b,
+            Comparison::NE => a != b,
+        }
+    }
 }
 
 impl Instruction {

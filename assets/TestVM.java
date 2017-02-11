@@ -1,6 +1,7 @@
 package com.mackie.rustyjvm;
 
 public class TestVM {
+    public static native void nativeBoolean(boolean i);
     public static native void nativeByte(byte i);
     public static native void nativeShort(short i);
     public static native void nativeInt(int i);
@@ -350,6 +351,50 @@ public class TestVM {
         nativeLong((long) d);
         nativeFloat((float) -2.1);
         nativeFloat((float) d);
+    }
 
+    public static void jumps() {
+        for(int i = 0; i < 2; i++) {
+            nativeInt(-10 + i);
+        }
+        int i = 1;
+        Object o = null;
+
+        if(i < 1) { nativeInt(0); }
+        if(i <= 1) { nativeInt(1); }
+        if(i == 1) { nativeInt(2); }
+        if(i != 1) { nativeInt(3); }
+        if(i >= 1) { nativeInt(4); }
+        if(i > 1) { nativeInt(5); }
+
+        if(i < 0) { nativeInt(6); }
+        if(i <= 0) { nativeInt(7); }
+        if(i == 0) { nativeInt(8); }
+        if(i != 0) { nativeInt(9); }
+        if(i >= 0) { nativeInt(10); }
+        if(i > 0) { nativeInt(11); }
+
+        if(o == o) { nativeInt(12); }
+        if(o != o) { nativeInt(13); }
+        if(o == null) { nativeInt(14); }
+        if(o != null) { nativeInt(15); }
+
+        float f = 0.9f;
+        double d = 1.1;
+        long l = 1;
+        nativeBoolean(d < 1.0);
+        nativeBoolean(d > 1.0);
+        nativeBoolean(f < 1.0f);
+        nativeBoolean(f > 1.0f);
+        nativeBoolean(l == 1);
+        nativeBoolean(l > 1);
+        nativeBoolean(l < 1);
+
+        d = Double.NaN;
+        f = Float.NaN;
+        nativeBoolean(d < 1.0);
+        nativeBoolean(d > 1.0);
+        nativeBoolean(f < 1.0f);
+        nativeBoolean(f > 1.0f);
     }
 }
