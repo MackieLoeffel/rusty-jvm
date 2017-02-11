@@ -13,6 +13,5 @@ script:
 - |
   export PATH=$PATH:~/.cargo/bin &&
   cargo fmt -- --write-mode=diff &&
-  # TODO: reenable cargo build --features strict &&
-  cargo build &&
+  cargo build --features strict &&
   cargo test --features strict

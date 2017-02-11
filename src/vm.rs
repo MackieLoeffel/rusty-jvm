@@ -6,7 +6,6 @@ use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
 use std::char;
-use std::cmp::max;
 use std::ops::{Mul, Add, Div, Sub, Rem, BitAnd, BitOr, BitXor};
 
 // USE WITH CARE
@@ -464,9 +463,11 @@ impl Frame {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::cmp::max;
+
     macro_rules! arg1 { ($val: expr) => {{vec![unsafe {mem::transmute::<_, i32>($val)}]}} }
     macro_rules! arg2 { ($val: expr) => {{unsafe {mem::transmute::<_, [i32; 2]>($val)}.to_vec()}} }
-    use super::*;
 
     fn run(class: &str, method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
         let classloader = ClassLoader::new("./assets");

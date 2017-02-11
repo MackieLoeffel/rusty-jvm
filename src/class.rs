@@ -1,4 +1,4 @@
-use classfile_parser::{ClassFile, parse_class};
+use classfile_parser::ClassFile;
 use classfile_parser::method_info::*;
 use classfile_parser::attribute_info::*;
 use instruction::{Instruction, Type};
@@ -139,6 +139,8 @@ impl Code {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use classfile_parser::parse_class;
+
 
     fn get_class() -> Class { Class::from_class_file(&parse_class("./assets/TestClass").unwrap()).unwrap() }
 

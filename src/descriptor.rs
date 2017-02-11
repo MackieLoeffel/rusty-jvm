@@ -85,6 +85,7 @@ fn as_type(typ: &FieldDescriptorType, num_array: usize) -> Type {
 }
 
 impl FieldDescriptor {
+    #[allow(dead_code)]
     pub fn parse(desc: &str) -> Option<FieldDescriptor> {
         named!(fd_eof<&str, FieldDescriptor>, do_parse!(
             fd: field_descriptor >>
