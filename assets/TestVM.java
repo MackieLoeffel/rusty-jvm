@@ -280,6 +280,16 @@ public class TestVM {
         nativeLong(l ^ 10L);
     }
 
+    private static void iinc() {
+        int a = 0x7FFFFFFF;
+        a += 1;
+        nativeInt(a);
+        a -= 1;
+        nativeInt(a);
+        a += -15;
+        nativeInt(a);
+    }
+
     private static void constants() {
         nativeInt(0);
         nativeInt(1337);

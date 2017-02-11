@@ -266,6 +266,10 @@ impl VM {
                         }
                     }
                 }
+                IINC(var, val) => {
+                    let a = frame.load(var);
+                    frame.store(var, a.wrapping_add(val as i32));
+                }
                 ACONST_NULL => frame.push(0),
                 DCONST_0 => frame.push2(conv!(0f64)),
                 DCONST_1 => frame.push2(conv!(1f64)),
@@ -612,6 +616,15 @@ mod tests {
                  ("nativeLong", arg2!(0b1110i64)),
                  ("nativeLong", arg2!(0b0110i64)),
                  ("nativeLong", arg2!(0b0110i64))]);
+    }
+
+    #[test]
+    fn iinc() {
+        run("TestVM",
+            "iinc",
+            vec![("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeInt", arg1!(0x7fffffff)),
+                 ("nativeInt", arg1!(0x7ffffff0))]);
     }
 
     #[test]
