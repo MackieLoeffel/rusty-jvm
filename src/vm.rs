@@ -6,7 +6,7 @@ use instruction::Type::*;
 use parsed_class::MethodRef;
 use std::mem;
 use std::cmp::max;
-use std::ops::Mul;
+use std::ops::{Mul, Add, Div, Sub, Rem};
 
 // USE WITH CARE
 macro_rules! conv { ($val: expr) => {{unsafe {mem::transmute($val)}}} }
@@ -168,13 +168,38 @@ impl VM {
                         frame.push(v);
                     }
                 }
+                ADD(t @ Int) | ADD(t @ Long) => arith_int!(t, wrapping_add),
+                ADD(t) => arith_float!(t, add),
+                SUB(t @ Int) | SUB(t @ Long) => arith_int!(t, wrapping_sub),
+                SUB(t) => arith_float!(t, sub),
                 MUL(t @ Int) | MUL(t @ Long) => arith_int!(t, wrapping_mul),
                 MUL(t) => arith_float!(t, mul),
-                // MUL(Int) => {
-                // let a: i32 = conv!(frame.pop());
-                // let b: i32 = conv!(frame.pop());
-                // frame.push(a.wrapping_mul(b));
-                // }
+                // TODO arithmetic exception
+                DIV(t @ Int) | DIV(t @ Long) => arith_int!(t, wrapping_div),
+                DIV(t) => arith_float!(t, div),
+                REM(t @ Int) | REM(t @ Long) => arith_int!(t, wrapping_rem),
+                REM(t) => arith_float!(t, rem),
+                NEG(t) => {
+                    match t {
+                        Int => {
+                            let a: i32 = conv!(frame.pop());
+                            frame.push(conv!(a.wrapping_neg()));
+                        }
+                        Long => {
+                            let a: i64 = conv!(frame.pop2());
+                            frame.push2(conv!(a.wrapping_neg()));
+                        }
+                        Float => {
+                            let a: f32 = conv!(frame.pop());
+                            frame.push(conv!(-a));
+                        }
+                        Double => {
+                            let a: f64 = conv!(frame.pop2());
+                            frame.push2(conv!(-a));
+                        }
+                        t @ _ => panic!("Operation NEG is not implemented for typ {:?}", t),
+                    }
+                }
                 RETURN(o) => {
                     if self.frames.is_empty() {
                         return;
@@ -303,7 +328,9 @@ mod tests {
                 panic!("FAIL");
             }
             assert_eq!((native_calls[index].0, &native_calls[index].1),
-                       (vm.native_calls[index].0.as_str(), &vm.native_calls[index].2));
+                       (vm.native_calls[index].0.as_str(), &vm.native_calls[index].2),
+                       "index: {}",
+                       index);
         }
     }
 
@@ -336,16 +363,133 @@ mod tests {
     }
 
     #[test]
+    fn add() {
+        run("TestVM",
+            "add",
+            vec![("nativeInt", arg1!(6)),
+                 ("nativeInt", arg1!(6)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(0x7FFFFFFE)),
+                 ("nativeInt", arg1!(0x7FFFFFFE)),
+                 ("nativeLong", arg2!(6i64)),
+                 ("nativeLong", arg2!(6i64)),
+                 ("nativeLong", arg2!(0xFFFFFFFEi64)),
+                 ("nativeLong", arg2!(0xFFFFFFFEi64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFEi64)),
+                 ("nativeLong", arg2!(0x7FFFFFFFFFFFFFFEi64)),
+                 ("nativeFloat", arg1!(2.1f32)),
+                 ("nativeFloat", arg1!(2.1f32)),
+                 ("nativeDouble", arg2!(2.1f64)),
+                 ("nativeDouble", arg2!(2.1f64))]);
+    }
+
+    #[test]
+    fn sub() {
+        run("TestVM",
+            "sub",
+            vec![("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeFloat", arg1!(-1.9f32)),
+                 ("nativeFloat", arg1!(-1.9f32)),
+                 ("nativeDouble", arg2!(-1.9f64)),
+                 ("nativeDouble", arg2!(-1.9f64))]);
+    }
+
+    #[test]
     fn mul() {
         run("TestVM",
             "mul",
             vec![("nativeInt", arg1!(8)),
+                 ("nativeInt", arg1!(8)),
+                 ("nativeInt", arg1!(4)),
                  ("nativeInt", arg1!(4)),
                  ("nativeLong", arg2!(8i64)),
+                 ("nativeLong", arg2!(8i64)),
+                 ("nativeLong", arg2!(0x400000010i64)),
                  ("nativeLong", arg2!(0x400000010i64)),
                  ("nativeLong", arg2!(4i64)),
+                 ("nativeLong", arg2!(4i64)),
                  ("nativeFloat", arg1!(0.2f32)),
+                 ("nativeFloat", arg1!(0.2f32)),
+                 ("nativeDouble", arg2!(0.2f64)),
                  ("nativeDouble", arg2!(0.2f64))]);
+    }
+
+    #[test]
+    fn div() {
+        run("TestVM",
+            "div",
+            vec![("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(-1)),
+                 ("nativeInt", arg1!(-1)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(-1i64)),
+                 ("nativeLong", arg2!(-1i64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeFloat", arg1!(0.05f32)),
+                 ("nativeFloat", arg1!(0.05f32)),
+                 ("nativeDouble", arg2!(0.05f64)),
+                 ("nativeDouble", arg2!(0.05f64))]);
+    }
+
+    #[test]
+    fn rem() {
+        run("TestVM",
+            "rem",
+            vec![("nativeInt", arg1!(2)),
+                 ("nativeInt", arg1!(2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(-2)),
+                 ("nativeInt", arg1!(0)),
+                 ("nativeInt", arg1!(0)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(-2i64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeFloat", arg1!(2.1f32 % 2.0f32)),
+                 ("nativeFloat", arg1!(2.1f32 % 2.0f32)),
+                 ("nativeDouble", arg2!(2.1f64 % 2.0f64)),
+                 ("nativeDouble", arg2!(2.1f64 % 2.0f64))]);
+    }
+
+    #[test]
+    fn neg() {
+        run("TestVM",
+            "neg",
+            vec![("nativeInt", arg1!(-4)),
+                 ("nativeInt", arg1!(-4)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeInt", arg1!(0x80000000u32)),
+                 ("nativeLong", arg2!(-4i64)),
+                 ("nativeLong", arg2!(-4i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeLong", arg2!(0x8000000000000000u64)),
+                 ("nativeFloat", arg1!(-0.1f32)),
+                 ("nativeFloat", arg1!(-0.1f32)),
+                 ("nativeDouble", arg2!(-0.1f64)),
+                 ("nativeDouble", arg2!(-0.1f64))]);
     }
 
     #[test]
