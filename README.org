@@ -6,10 +6,29 @@
    - https://docs.oracle.com/javase/specs/jvms/se6/html/VMSpecTOC.doc.html
 
 ** Status
-   - [ ] dasd
-   - [X] dasd
-
-*** TODO dasd
-    asda
-*** DONE dasdsa
-    dasd
+   - [X] parse classfiles
+   - [X] decode instructions
+   - [-] implement instructions
+     - [X] implement conversions
+     - [X] implement arithmetic
+     - [X] implement constants
+     - [X] implement jumps and conditionals
+     - [-] implement method invocation
+       - [X] INVOKESTATIC
+       - [ ] INVOKEINTERFACE
+       - [ ] INVOKESPECIAL
+       - [ ] INVOKEVIRTUAL
+     - [ ] implement objects
+       - [ ] implement object creation
+       - [ ] implement arrays
+       - [ ] implement strings
+     - [ ] implement casts
+     - [ ] implement field access
+     - [ ] implement other instructions
+   - [ ] setup tests with real jvm
+   - [ ] implement tableswitch and lookup switch
+   - [ ] exceptions
+   - [ ] garbage collection
+   - [ ] integrate with GNU Classpath
+   - [ ] classfile verification
+   - [ ] synchronisation
