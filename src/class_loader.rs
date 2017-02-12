@@ -5,7 +5,6 @@ use std::io::prelude::*;
 use classfile_parser::class_parser_option;
 use class::Class;
 use errors::ClassLoadingError;
-use std::cell::UnsafeCell;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ConstantPool.doc.html
 
@@ -18,24 +17,25 @@ const MAX_MINOR_VERSION: u16 = 0;
 
 pub struct ClassLoader {
     load_dir: PathBuf,
-    // see http://stackoverflow.com/a/25190401
-    loaded_classes: UnsafeCell<HashMap<String, Class>>,
+    loaded_classes: HashMap<String, Class>,
 }
 
 impl ClassLoader {
     pub fn new(load_dir: &str) -> ClassLoader {
         ClassLoader {
             load_dir: load_dir.into(),
-            loaded_classes: UnsafeCell::new(HashMap::new()),
+            loaded_classes: HashMap::new(),
         }
     }
 
     pub fn load_class(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
-        unsafe {
-            if let Some(c) = (*self.loaded_classes.get()).get(name) {
-                // println!("Used class from cache: {}", c.name());
-                return Ok(c);
-            }
+        // must check twice to make the borrow-checker happy
+        // TODO change, when non-lexical-lifetimes arrive
+        if self.loaded_classes.contains_key(name) {
+            return match self.loaded_classes.get(name) {
+                Some(c) => Ok(c),
+                None => unreachable!(),
+            };
         }
         self.load_file(name.split('/').last().unwrap_or(name))
     }
@@ -71,11 +71,9 @@ impl ClassLoader {
         };
 
         let class_name = class.name().to_owned();
-        unsafe {
-            assert!((*self.loaded_classes.get()).insert(class_name.clone(), class).is_none());
+        assert!(self.loaded_classes.insert(class_name.clone(), class).is_none());
 
-            Ok(&(*self.loaded_classes.get())[&class_name])
-        }
+        Ok(&self.loaded_classes[&class_name])
     }
 }
 

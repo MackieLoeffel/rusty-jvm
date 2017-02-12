@@ -78,7 +78,7 @@ impl Method {
                         None => return Err("invalid code attribute".to_owned()),
                     };
 
-                    if code_attr.code.is_empty()  {
+                    if code_attr.code.is_empty() {
                         return Err("Code may not be empty".to_owned());
                     }
 

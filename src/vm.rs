@@ -236,7 +236,7 @@ impl VM {
                             let a: f64 = conv!(frame.pop2());
                             frame.push2(conv!(-a));
                         }
-                        t  => panic!("Operation NEG is not implemented for typ {:?}", t),
+                        t => panic!("Operation NEG is not implemented for typ {:?}", t),
                     }
                 }
                 SHL(t) => {
@@ -251,7 +251,7 @@ impl VM {
                             let a: i64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shl(b)));
                         }
-                        t  => panic!("Operation SHL is not implemented for typ {:?}", t),
+                        t => panic!("Operation SHL is not implemented for typ {:?}", t),
                     }
                 }
                 SHR(t) => {
@@ -266,7 +266,7 @@ impl VM {
                             let a: i64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shr(b)));
                         }
-                        t  => panic!("Operation SHR is not implemented for typ {:?}", t),
+                        t => panic!("Operation SHR is not implemented for typ {:?}", t),
                     }
                 }
                 USHR(t) => {
@@ -281,7 +281,7 @@ impl VM {
                             let a: u64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shr(b)));
                         }
-                        t  => panic!("Operation USHR is not implemented for typ {:?}", t),
+                        t => panic!("Operation USHR is not implemented for typ {:?}", t),
                     }
                 }
                 RETURN(o) => {
@@ -394,7 +394,7 @@ impl VM {
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
                 }
-                c  => panic!("Not implemented Instruction {:?}", c),
+                c => panic!("Not implemented Instruction {:?}", c),
             }
         }
     }

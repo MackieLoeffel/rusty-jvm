@@ -198,7 +198,7 @@ impl Instruction {
                 &ConstantInfo::Integer(ref s) => Ok(LDC_INT(s.value)),
                 &ConstantInfo::Float(ref s) => Ok(LDC_FLOAT(s.value)),
                 &ConstantInfo::String(ref s) => Ok(LDC_STRING(parsed.constant_utf8(s.string_index)?.to_owned())),
-                c  => Err(format!("Invalid Value for LDC reference: {}", c.to_string())),
+                c => Err(format!("Invalid Value for LDC reference: {}", c.to_string())),
             }
         }
 
@@ -405,7 +405,7 @@ impl Instruction {
                     match parsed.constant(next_u16(&mut index, bytes)?)? {
                         &ConstantInfo::Double(ref s) => LDC_DOUBLE(s.value),
                         &ConstantInfo::Long(ref s) => LDC_LONG(s.value),
-                        c  => return Err(format!("Invalid Value for LDC2 reference: {}", c.to_string())),
+                        c => return Err(format!("Invalid Value for LDC2 reference: {}", c.to_string())),
                     }
                 }
                 0x6d => DIV(Long),
@@ -447,7 +447,7 @@ impl Instruction {
                         9 => Short,
                         10 => Int,
                         11 => Long,
-                        c  => return Err(format!("unknown array type: {}", c)),
+                        c => return Err(format!("unknown array type: {}", c)),
                     })
                 }
                 0x00 => NOP,
@@ -463,7 +463,7 @@ impl Instruction {
                 0x5f => SWAP,
                 // 0xaa => tableswitch, // TODO
                 // 0xc4 => wide, // TODO
-                op  => return Err(format!("Unknown Instruction {:#x}", op)),
+                op => return Err(format!("Unknown Instruction {:#x}", op)),
             });
         }
 
@@ -477,12 +477,12 @@ impl Instruction {
         }
         for instr in &mut vec {
             match *instr {
-                 GOTO(addr) => *instr = GOTO(fixup_address(addr, &old_to_new_index)?),
-                 JSR(addr) => *instr = JSR(fixup_address(addr, &old_to_new_index)?),
-                 IF_ACMP(comp, addr) => *instr = IF_ACMP(comp, fixup_address(addr, &old_to_new_index)?),
-                 IF_ICMP(comp, addr) => *instr = IF_ICMP(comp, fixup_address(addr, &old_to_new_index)?),
-                 IF(comp, addr) => *instr = IF(comp, fixup_address(addr, &old_to_new_index)?),
-                 IFNULL(comp, addr) => *instr = IFNULL(comp, fixup_address(addr, &old_to_new_index)?),
+                GOTO(addr) => *instr = GOTO(fixup_address(addr, &old_to_new_index)?),
+                JSR(addr) => *instr = JSR(fixup_address(addr, &old_to_new_index)?),
+                IF_ACMP(comp, addr) => *instr = IF_ACMP(comp, fixup_address(addr, &old_to_new_index)?),
+                IF_ICMP(comp, addr) => *instr = IF_ICMP(comp, fixup_address(addr, &old_to_new_index)?),
+                IF(comp, addr) => *instr = IF(comp, fixup_address(addr, &old_to_new_index)?),
+                IFNULL(comp, addr) => *instr = IFNULL(comp, fixup_address(addr, &old_to_new_index)?),
                 _ => continue,
             }
         }
