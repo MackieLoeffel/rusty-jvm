@@ -23,15 +23,32 @@ mod descriptor;
 
 use class_loader::ClassLoader;
 use vm::VM;
+use std::env;
+use std::process::exit;
+use std::io::{stderr, Write};
 
 pub const CLASSFILE_DIR: &'static str = "./java";
 
 fn main() {
+    let dest = match env::args().nth(1) {
+        Some(s) => s,
+        None => {
+            writeln!(&mut stderr(),
+                     "Usage: {} <classname> <args>",
+                     env::args().nth(0).unwrap())
+                .expect("stderr writing failed");
+            exit(1);
+        }
+    };
+
     let classloader = ClassLoader::new(CLASSFILE_DIR);
 
     let mut vm = VM::new(classloader);
-    match vm.start("Jump", &["arg1", "arg2"]) {
+    match vm.start(&dest, &[]) {
         Ok(..) => {}
-        Err(ref err) => println!("Error running: {}", err),
+        Err(ref err) => {
+            writeln!(&mut stderr(), "Error running: {}", err).expect("stderr writing failed");
+            exit(1);
+        }
     };
 }

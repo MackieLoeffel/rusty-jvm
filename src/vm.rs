@@ -80,9 +80,11 @@ impl VM {
             if method.access_flags().contains(NATIVE) {
                 self.native_calls.push((method.name().to_owned(), method.descriptor().to_owned(), args.to_vec()));
                 // TODO real handling of call
-                if method.name() == "dump_char" {
-                    print!("{}", char::from_u32(args[0] as u32).unwrap_or('?'));
-                }
+                return;
+            }
+            // TODO remove specialhandling for dump_char, when there is another way to output
+            if method.name() == "dump_char" && method.descriptor() == "(C)V" {
+                print!("{}", char::from_u32(args[0] as u32).unwrap_or('?'));
                 return;
             }
 
