@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "cargo-clippy", allow(inline_always))]
+
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 extern crate classfile_parser;
