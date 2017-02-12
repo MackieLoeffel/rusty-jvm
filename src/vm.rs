@@ -127,7 +127,7 @@ impl VM {
     fn allocate_object(&mut self, object: Object) -> i32 {
         // TODO think of a better allocation scheeme
 
-        println!("Allocation object {:?}", object);
+        // println!("Allocating object {:?}", object);
         for i in 1..self.heap.len() {
             if self.heap[i].is_none() {
                 self.heap[i] = Some(object);

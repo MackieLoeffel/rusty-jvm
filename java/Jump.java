@@ -154,35 +154,77 @@ public class Jump {
         }
     }
 
-    public static void main(String[] args) {
-        test_int(1, 2);
+    private static void test_long(long a, long b) {
+        if (a < b) {
+            dump_long(a);
+            dump_char3(' ', '<', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+        if (a <= b) {
+            dump_long(a);
+            dump_char4(' ', '<', '=', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+        if (a > b) {
+            dump_long(a);
+            dump_char3(' ', '>', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+        if (a >= b) {
+            dump_long(a);
+            dump_char4(' ', '>', '=', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+        if (a == b) {
+            dump_long(a);
+            dump_char4(' ', '=', '=', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+        if (a != b) {
+            dump_long(a);
+            dump_char4(' ', '!', '=', ' ');
+            dump_long(b);
+            dump_char('\n');
+        }
+    }
 
-        // long val[] = {
+    public static void main(String[] args) {
+        // test_int(1, 2);
+
+        long val[] = {
+            // Long.MIN_VALUE, Long.MIN_VALUE + 1, Long.MIN_VALUE + 2,
             // Integer.MIN_VALUE, Integer.MIN_VALUE + 1, Integer.MIN_VALUE + 2,
             // Short.MIN_VALUE, Short.MIN_VALUE + 1, Short.MIN_VALUE + 2,
-            // Byte.MIN_VALUE, Byte.MIN_VALUE + 1, Byte.MIN_VALUE + 2,
-            // -2, -1,
-            // 0,
-            // 1, 2,
-            // Byte.MAX_VALUE - 2, Byte.MAX_VALUE - 1, Byte.MAX_VALUE,
+            Byte.MIN_VALUE, Byte.MIN_VALUE + 1, Byte.MIN_VALUE + 2,
+            -2, -1,
+            0,
+            1, 2,
+            Byte.MAX_VALUE - 2, Byte.MAX_VALUE - 1, Byte.MAX_VALUE,
             // Short.MAX_VALUE - 2, Short.MAX_VALUE - 1, Short.MAX_VALUE,
             // Integer.MAX_VALUE - 2, Integer.MAX_VALUE - 1, Integer.MAX_VALUE,
-        // };
-        // int i;
-        // int j;
+            // Long.MAX_VALUE - 2, Long.MAX_VALUE - 1, Long.MAX_VALUE,
+        };
+        int i;
+        int j;
 
-        // for (i = 0; i < val.length; i++) {
-            // for (j = 0; j < val.length; j++) {
-                // if ((byte) val[i] == val[i]
-                    // && (byte) val[j] == val[j]) {
-                    // test_byte((byte)val[i], (byte)val[j]);
-                // }
-                // if ((short) val[i] == val[i]
-                    // && (short) val[j] == val[j]) {
+        for (i = 0; i < val.length; i++) {
+            for (j = 0; j < val.length; j++) {
+                if ((byte) val[i] == val[i] && (byte) val[j] == val[j]) {
+                    test_byte((byte)val[i], (byte)val[j]);
+                }
+                // if ((short) val[i] == val[i] && (short) val[j] == val[j]) {
                     // test_short((short)val[i], (short)val[j]);
                 // }
-                // test_int((int)val[i], (int)val[j]);
-            // }
-        // }
+                // if ((int) val[i] == val[i] && (int) val[j] == val[j]) {
+                    // test_int((int)val[i], (int)val[j]);
+                // }
+                // test_long(val[i], val[j]);
+            }
+        }
     }
 }
