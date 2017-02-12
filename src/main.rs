@@ -24,8 +24,10 @@ mod descriptor;
 use class_loader::ClassLoader;
 use vm::VM;
 
+pub const CLASSFILE_DIR: &'static str = "./java";
+
 fn main() {
-    let classloader = ClassLoader::new("./assets");
+    let classloader = ClassLoader::new(CLASSFILE_DIR);
 
     let mut vm = VM::new(classloader);
     match vm.start("Jump", &["arg1", "arg2"]) {

@@ -81,7 +81,7 @@ impl ClassLoader {
 mod tests {
     use super::*;
 
-    fn setup() -> ClassLoader { ClassLoader::new("./assets") }
+    fn setup() -> ClassLoader { ClassLoader::new(super::super::CLASSFILE_DIR) }
 
     #[test]
     fn not_existing_class() {

@@ -501,7 +501,8 @@ mod tests {
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     fn get_instructions_with_desc(method_name: &str, descriptor: &str) -> Vec<Instruction> {
-        Class::from_class_file(&parse_class("./assets/TestInstruction").unwrap()).unwrap()
+        Class::from_class_file(&parse_class(
+            &(super::super::CLASSFILE_DIR.to_owned() +"/TestInstruction")).unwrap()).unwrap()
             .method_by_signature(method_name, descriptor).unwrap()
             .code().unwrap()
             .code().to_vec()

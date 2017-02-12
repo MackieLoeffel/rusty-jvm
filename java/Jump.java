@@ -1,10 +1,9 @@
 
 
 public class Jump {
-    private native static void dump_char(char c);
-        // {
-        // System.out.print(c);
-    // }
+    private static void dump_char(char c) {
+        System.out.print(c);
+    }
     private static void dump_char2(char c1, char c2) {
         dump_char(c1);
         dump_char(c2);

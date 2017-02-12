@@ -470,7 +470,7 @@ mod tests {
     macro_rules! arg2 { ($val: expr) => {{unsafe {mem::transmute::<_, [i32; 2]>($val)}.to_vec()}} }
 
     fn run(class: &str, method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
-        let classloader = ClassLoader::new("./assets");
+        let classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
         let mut vm = VM::new(classloader);
         let mut start_frame = Frame::dummy_frame(0);
         vm.invoke_method(class, method, "()V", &mut start_frame);
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn print_class() {
-        let mut classloader = ClassLoader::new("./assets");
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
         let class = classloader.load_class("TestVM").unwrap();
         for method in class.methods() {
             println!("Method {} {}:", method.descriptor(), method.name());

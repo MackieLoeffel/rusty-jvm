@@ -142,7 +142,9 @@ mod tests {
     use classfile_parser::parse_class;
 
 
-    fn get_class() -> Class { Class::from_class_file(&parse_class("./assets/TestClass").unwrap()).unwrap() }
+    fn get_class() -> Class {
+        Class::from_class_file(&parse_class(&(super::super::CLASSFILE_DIR.to_owned() + "/TestClass")).unwrap()).unwrap()
+    }
 
     #[test]
     fn name() {
