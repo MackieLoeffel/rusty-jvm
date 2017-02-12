@@ -66,7 +66,7 @@ impl Method {
         let descriptor = parsed.constant_utf8(info.descriptor_index)?;
 
         let mut code: Option<Code> = None;
-        for attr in info.attributes.iter() {
+        for attr in &info.attributes {
             match parsed.constant_utf8(attr.attribute_name_index)? {
                 "Code" => {
                     if code.is_some() {
@@ -78,7 +78,7 @@ impl Method {
                         None => return Err("invalid code attribute".to_owned()),
                     };
 
-                    if code_attr.code.len() == 0 {
+                    if code_attr.code.is_empty()  {
                         return Err("Code may not be empty".to_owned());
                     }
 

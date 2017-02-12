@@ -57,7 +57,7 @@ impl ParsedClass for ClassFile {
         if index == 0 || index as usize > self.const_pool.len() {
             return Err("index out of bounds".to_owned());
         }
-        return Ok(&self.const_pool[(index - 1) as usize]);
+        Ok(&self.const_pool[(index - 1) as usize])
     }
 
     fn constant_utf8(&self, index: u16) -> Result<&str, String> {

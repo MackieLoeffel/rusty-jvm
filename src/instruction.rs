@@ -183,12 +183,12 @@ impl Instruction {
         fn next_u16(index: &mut usize, bytes: &[u8]) -> Result<u16, String> {
             let b1 = next(index, bytes)? as u16;
             let b2 = next(index, bytes)? as u16;
-            return Ok((b1 << 8) | b2);
+            Ok((b1 << 8) | b2)
         }
         fn next_u32(index: &mut usize, bytes: &[u8]) -> Result<u32, String> {
             let b1 = next_u16(index, bytes)? as u32;
             let b2 = next_u16(index, bytes)? as u32;
-            return Ok((b1 << 16) | b2);
+            Ok((b1 << 16) | b2)
         }
         fn class_ref(index: &mut usize, bytes: &[u8], parsed: &ClassFile) -> Result<String, String> {
             Ok(parsed.constant_class(next_u16(index, bytes)?)?.to_owned())
@@ -198,7 +198,7 @@ impl Instruction {
                 &ConstantInfo::Integer(ref s) => Ok(LDC_INT(s.value)),
                 &ConstantInfo::Float(ref s) => Ok(LDC_FLOAT(s.value)),
                 &ConstantInfo::String(ref s) => Ok(LDC_STRING(parsed.constant_utf8(s.string_index)?.to_owned())),
-                c @ _ => Err(format!("Invalid Value for LDC reference: {}", c.to_string())),
+                c  => Err(format!("Invalid Value for LDC reference: {}", c.to_string())),
             }
         }
 
@@ -405,7 +405,7 @@ impl Instruction {
                     match parsed.constant(next_u16(&mut index, bytes)?)? {
                         &ConstantInfo::Double(ref s) => LDC_DOUBLE(s.value),
                         &ConstantInfo::Long(ref s) => LDC_LONG(s.value),
-                        c @ _ => return Err(format!("Invalid Value for LDC2 reference: {}", c.to_string())),
+                        c  => return Err(format!("Invalid Value for LDC2 reference: {}", c.to_string())),
                     }
                 }
                 0x6d => DIV(Long),
@@ -447,7 +447,7 @@ impl Instruction {
                         9 => Short,
                         10 => Int,
                         11 => Long,
-                        c @ _ => return Err(format!("unknown array type: {}", c)),
+                        c  => return Err(format!("unknown array type: {}", c)),
                     })
                 }
                 0x00 => NOP,
@@ -463,7 +463,7 @@ impl Instruction {
                 0x5f => SWAP,
                 // 0xaa => tableswitch, // TODO
                 // 0xc4 => wide, // TODO
-                op @ _ => return Err(format!("Unknown Instruction {:#x}", op)),
+                op  => return Err(format!("Unknown Instruction {:#x}", op)),
             });
         }
 
@@ -475,18 +475,18 @@ impl Instruction {
                 .map(|v| *v as CodeAddress)
                 .ok_or(format!("Can't resolve CodeAddress {}", address))
         }
-        for instr in vec.iter_mut() {
-            match instr {
-                &mut GOTO(addr) => *instr = GOTO(fixup_address(addr, &old_to_new_index)?),
-                &mut JSR(addr) => *instr = JSR(fixup_address(addr, &old_to_new_index)?),
-                &mut IF_ACMP(comp, addr) => *instr = IF_ACMP(comp, fixup_address(addr, &old_to_new_index)?),
-                &mut IF_ICMP(comp, addr) => *instr = IF_ICMP(comp, fixup_address(addr, &old_to_new_index)?),
-                &mut IF(comp, addr) => *instr = IF(comp, fixup_address(addr, &old_to_new_index)?),
-                &mut IFNULL(comp, addr) => *instr = IFNULL(comp, fixup_address(addr, &old_to_new_index)?),
+        for instr in &mut vec {
+            match *instr {
+                 GOTO(addr) => *instr = GOTO(fixup_address(addr, &old_to_new_index)?),
+                 JSR(addr) => *instr = JSR(fixup_address(addr, &old_to_new_index)?),
+                 IF_ACMP(comp, addr) => *instr = IF_ACMP(comp, fixup_address(addr, &old_to_new_index)?),
+                 IF_ICMP(comp, addr) => *instr = IF_ICMP(comp, fixup_address(addr, &old_to_new_index)?),
+                 IF(comp, addr) => *instr = IF(comp, fixup_address(addr, &old_to_new_index)?),
+                 IFNULL(comp, addr) => *instr = IFNULL(comp, fixup_address(addr, &old_to_new_index)?),
                 _ => continue,
             }
         }
-        return Ok(vec);
+        Ok(vec)
     }
 }
 

@@ -1,4 +1,11 @@
 #![cfg_attr(feature = "cargo-clippy", allow(inline_always))]
+#![cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
+#![cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
+#![cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
+#![cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
+#![cfg_attr(feature = "cargo-clippy", allow(or_fun_call))]
+#![cfg_attr(feature = "cargo-clippy", allow(single_match))]
+#![cfg_attr(feature = "cargo-clippy", allow(absurd_extreme_comparisons))]
 
 #![cfg_attr(feature = "strict", deny(warnings))]
 

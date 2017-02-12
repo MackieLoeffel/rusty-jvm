@@ -131,7 +131,7 @@ impl VM {
                     let a: i64 = conv!(frame.pop2());
                     frame.push2(conv!(a.$op(b)));
                 }
-                t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
+                t => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
             }
         }});
 
@@ -147,17 +147,17 @@ impl VM {
                     let a: f64 = conv!(frame.pop2());
                     frame.push2(conv!(a.$op(b)));
                 }
-                t@_ => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
+                t => panic!("Operation {} is not implemented for typ {:?}", stringify!($op), t),
             }
         }});
         macro_rules! convert(($from_typ: ident, $pop: ident, $to_typ: ident, $push: ident) => {{
             let a: $from_typ = conv!(frame.$pop());
-            frame.$push(conv!((a as $to_typ)));
+            frame.$push(conv!(a as $to_typ));
         }});
 
 
         loop {
-            match frame.next() {
+            match frame.next_instruction() {
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
                         // TODO test
@@ -236,7 +236,7 @@ impl VM {
                             let a: f64 = conv!(frame.pop2());
                             frame.push2(conv!(-a));
                         }
-                        t @ _ => panic!("Operation NEG is not implemented for typ {:?}", t),
+                        t  => panic!("Operation NEG is not implemented for typ {:?}", t),
                     }
                 }
                 SHL(t) => {
@@ -251,7 +251,7 @@ impl VM {
                             let a: i64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shl(b)));
                         }
-                        t @ _ => panic!("Operation SHL is not implemented for typ {:?}", t),
+                        t  => panic!("Operation SHL is not implemented for typ {:?}", t),
                     }
                 }
                 SHR(t) => {
@@ -266,7 +266,7 @@ impl VM {
                             let a: i64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shr(b)));
                         }
-                        t @ _ => panic!("Operation SHR is not implemented for typ {:?}", t),
+                        t  => panic!("Operation SHR is not implemented for typ {:?}", t),
                     }
                 }
                 USHR(t) => {
@@ -281,7 +281,7 @@ impl VM {
                             let a: u64 = conv!(frame.pop2());
                             frame.push2(conv!(a.wrapping_shr(b)));
                         }
-                        t @ _ => panic!("Operation USHR is not implemented for typ {:?}", t),
+                        t  => panic!("Operation USHR is not implemented for typ {:?}", t),
                     }
                 }
                 RETURN(o) => {
@@ -394,7 +394,7 @@ impl VM {
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
                 }
-                c @ _ => panic!("Not implemented Instruction {:?}", c),
+                c  => panic!("Not implemented Instruction {:?}", c),
             }
         }
     }
@@ -414,7 +414,7 @@ impl Frame {
     }
 
     #[inline(always)]
-    fn next(&mut self) -> Instruction {
+    fn next_instruction(&mut self) -> Instruction {
         let instruction = self.code[self.ip].clone();
         self.ip += 1;
         instruction

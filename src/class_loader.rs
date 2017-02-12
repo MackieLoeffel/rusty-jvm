@@ -32,7 +32,7 @@ impl ClassLoader {
 
     pub fn load_class(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
         unsafe {
-            if let Some(ref c) = (*self.loaded_classes.get()).get(name) {
+            if let Some(c) = (*self.loaded_classes.get()).get(name) {
                 // println!("Used class from cache: {}", c.name());
                 return Ok(c);
             }
@@ -74,7 +74,7 @@ impl ClassLoader {
         unsafe {
             assert!((*self.loaded_classes.get()).insert(class_name.clone(), class).is_none());
 
-            Ok((*self.loaded_classes.get()).get(&class_name).unwrap())
+            Ok(&(*self.loaded_classes.get())[&class_name])
         }
     }
 }
