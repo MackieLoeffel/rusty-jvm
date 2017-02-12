@@ -85,13 +85,17 @@ fn as_type(typ: &FieldDescriptorType, num_array: usize) -> Type {
 }
 
 impl FieldDescriptor {
-    #[allow(dead_code)]
     pub fn parse(desc: &str) -> Option<FieldDescriptor> {
         named!(fd_eof<&str, FieldDescriptor>, do_parse!(
             fd: field_descriptor >>
                 eof!() >> (fd)
                ));
         fd_eof(desc).to_result().ok()
+    }
+
+    pub fn as_type_without_arrays(&self, num_less_arrays: usize) -> Type {
+        assert!(num_less_arrays <= self.num_array);
+        as_type(&self.typ, self.num_array - num_less_arrays)
     }
 }
 
@@ -185,6 +189,24 @@ mod tests {
     fn field_reference_array() {
         assert_eq!(FieldDescriptor::parse("[[Ljava/lang/Object;"),
                    fd(Reference("java/lang/Object".to_owned()), 2));
+    }
+
+    #[test]
+    fn field_as_typ_without_array0() {
+        assert_eq!(FieldDescriptor::parse("[[J").unwrap().as_type_without_arrays(0),
+                   Type::Reference);
+    }
+
+    #[test]
+    fn field_as_typ_without_array1() {
+        assert_eq!(FieldDescriptor::parse("[[J").unwrap().as_type_without_arrays(1),
+                   Type::Reference);
+    }
+
+    #[test]
+    fn field_as_typ_without_array2() {
+        assert_eq!(FieldDescriptor::parse("[[J").unwrap().as_type_without_arrays(2),
+                   Type::Long);
     }
 
     #[test]

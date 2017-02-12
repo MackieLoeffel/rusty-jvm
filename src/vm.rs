@@ -4,6 +4,8 @@ use instruction::{Instruction, LocalVarRef};
 use instruction::Instruction::*;
 use instruction::Type::*;
 use parsed_class::MethodRef;
+use descriptor::FieldDescriptor;
+use object::{Object, ArrayObject};
 use std::mem;
 use std::char;
 use std::ops::{Mul, Add, Div, Sub, Rem, BitAnd, BitOr, BitXor};
@@ -14,6 +16,7 @@ macro_rules! conv { ($val: expr) => {{unsafe {mem::transmute($val)}}} }
 pub struct VM {
     classloader: ClassLoader,
     frames: Vec<Frame>,
+    heap: Vec<Option<Object>>,
     // TODO #[cfg(debug)]
     native_calls: Vec<(String, String, Vec<i32>)>,
 }
@@ -31,10 +34,15 @@ pub struct Frame {
 
 impl VM {
     pub fn new(loader: ClassLoader) -> VM {
+        let mut heap = Vec::new();
+        // create dummy null object
+        heap.push(None);
+
         VM {
             native_calls: Vec::new(),
             classloader: loader,
             frames: Vec::new(),
+            heap: heap,
         }
     }
 
@@ -67,7 +75,7 @@ impl VM {
         Ok(())
     }
 
-    pub fn invoke_method(&mut self, class_name: &str, method: &str, descriptor: &str, calling_frame: &mut Frame) {
+    fn invoke_method(&mut self, class_name: &str, method: &str, descriptor: &str, calling_frame: &mut Frame) {
         // these unwraps should be checked in the linking stage
         let method = self.classloader.load_class(class_name).unwrap().method_by_signature(method, descriptor).unwrap();
 
@@ -109,11 +117,29 @@ impl VM {
         self.frames.push(new_frame);
     }
 
-    pub fn invoke_method_ref(&mut self, method: &MethodRef, calling_frame: &mut Frame) {
+    fn invoke_method_ref(&mut self, method: &MethodRef, calling_frame: &mut Frame) {
         self.invoke_method(method.class(),
                            method.name(),
                            method.descriptor(),
                            calling_frame)
+    }
+
+    fn allocate_object(&mut self, object: Object) -> i32 {
+        // TODO think of a better allocation scheeme
+
+        println!("Allocation object {:?}", object);
+        for i in 1..self.heap.len() {
+            if self.heap[i].is_none() {
+                self.heap[i] = Some(object);
+                return i as i32;
+            }
+        }
+        self.heap.push(Some(object));
+        (self.heap.len() - 1) as i32
+    }
+
+    fn get_array(&mut self, index: i32) -> &mut ArrayObject {
+        self.heap[index as usize].as_mut().expect("Invalid Reference").as_array()
     }
 
     fn run(&mut self, start_frame: Frame) {
@@ -160,6 +186,38 @@ impl VM {
 
         loop {
             match frame.next_instruction() {
+                ASTORE(typ) => {
+                    if typ.is_double_sized() {
+                        let val = frame.pop2();
+                        let index = frame.pop();
+                        let array = frame.pop();
+                        // TODO throw nullpointer exception
+
+                        self.get_array(array).set2(index, val);
+                    } else {
+                        let val = frame.pop();
+                        let index = frame.pop();
+                        let array = frame.pop();
+                        // TODO throw nullpointer exception
+
+                        self.get_array(array).set(index, val);
+                    }
+                }
+                ALOAD(typ) => {
+                    let index = frame.pop();
+                    let array = frame.pop();
+                    // TODO throw nullpointer exception
+                    if typ.is_double_sized() {
+                        frame.push2(self.get_array(array).get2(index));
+                    } else {
+                        frame.push(self.get_array(array).get(index));
+                    }
+                }
+                ARRAYLENGTH => {
+                    let array = frame.pop();
+                    frame.push(self.get_array(array).length());
+                }
+
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
                         // TODO test
@@ -178,6 +236,50 @@ impl VM {
                         let v = frame.load(idx);
                         frame.push(v);
                     }
+                }
+
+                ANEWARRAY(_) => {
+                    let length = frame.pop();
+                    // TODO throw NegativeArraySizeException exception
+                    frame.push(self.allocate_object(Object::new_array(length, Reference)));
+                }
+                MULTIANEWARRAY(descriptor, count) => {
+                    fn create_array(depth: usize,
+                                    count: usize,
+                                    desc: &FieldDescriptor,
+                                    frame: &mut Frame,
+                                    vm: &mut VM)
+                                    -> i32 {
+                        let len = frame.nth_from_top(count - depth);
+                        // TODO throw NegativeArraySizeException exception
+                        let typ = if depth == count {
+                            desc.as_type_without_arrays(count)
+                        } else {
+                            Reference
+                        };
+                        let mut array = ArrayObject::new(len, typ);
+
+                        if depth < count {
+                            for i in 0..len {
+                                array.set(i, create_array(depth + 1, count, desc, frame, vm));
+                            }
+                        }
+                        vm.allocate_object(Object::Array(array))
+                    }
+
+                    let created = create_array(1,
+                                               count as usize,
+                                               &FieldDescriptor::parse(&descriptor).unwrap(),
+                                               &mut frame,
+                                               self);
+                    frame.sp -= count as usize;
+                    frame.push(created);
+                }
+                // TODO NEW(String),
+                NEWARRAY(t) => {
+                    let length = frame.pop();
+                    // TODO throw NegativeArraySizeException exception
+                    frame.push(self.allocate_object(Object::new_array(length, t)));
                 }
 
                 CONVERT(Int, Byte) => {
@@ -325,6 +427,11 @@ impl VM {
                 LDC_DOUBLE(f) => frame.push2(conv!(f)),
                 LDC_LONG(i) => frame.push2(conv!(i)),
 
+                DUP => {
+                    let val = frame.top();
+                    frame.push(val);
+                }
+
                 i @ DCMPG | i @ DCMPL => {
                     let b: f64 = conv!(frame.pop2());
                     let a: f64 = conv!(frame.pop2());
@@ -446,6 +553,12 @@ impl Frame {
         let a = self.pop();
         [a, b]
     }
+
+    #[inline(always)]
+    fn top(&self) -> i32 { self.nth_from_top(0) }
+
+    #[inline(always)]
+    fn nth_from_top(&self, n: usize) -> i32 { self.stack[self.sp - 1 - n] }
 
     #[inline(always)]
     fn store(&mut self, index: LocalVarRef, val: i32) { self.local_vars[index as usize] = val; }
@@ -823,4 +936,22 @@ mod tests {
                  ("nativeBoolean", arg1!(0)),
                  ("nativeBoolean", arg1!(0))]);
     }
+
+    #[test]
+    fn arrays() {
+        run("TestVM",
+            "arrays",
+            vec![("nativeLong", arg2!(0i64)),
+                 ("nativeLong", arg2!(5i64)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(2)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeLong", arg2!(5i64)),
+                 ("nativeInt", arg1!(1)),
+                 ("nativeInt", arg1!(2)),
+                 ("nativeInt", arg1!(2)),
+                 ("nativeInt", arg1!(3)),
+                 ("nativeInt", arg1!(2))]);
+    }
+
 }

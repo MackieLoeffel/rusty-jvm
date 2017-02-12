@@ -2,7 +2,7 @@
   [[https://travis-ci.org/MackieLoeffel/rusty-jvm][file:https://travis-ci.org/MackieLoeffel/rusty-jvm.svg?branch=master]]
 
   An experiment to create a JVM in Rust.
-** Sources:
+** Sources
    - https://docs.oracle.com/javase/specs/jvms/se6/html/VMSpecTOC.doc.html
 
 ** Status
@@ -18,14 +18,14 @@
        - [ ] INVOKEINTERFACE
        - [ ] INVOKESPECIAL
        - [ ] INVOKEVIRTUAL
-     - [ ] implement objects
+     - [-] implement objects
        - [ ] implement object creation
-       - [ ] implement arrays
+       - [X] implement arrays
        - [ ] implement strings
      - [ ] implement casts
      - [ ] implement field access
      - [ ] implement other instructions
-   - [ ] setup tests with real jvm
+   - [X] setup tests with real jvm
    - [ ] implement tableswitch and lookup switch
    - [ ] exceptions
    - [ ] garbage collection

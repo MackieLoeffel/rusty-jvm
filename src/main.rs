@@ -20,6 +20,7 @@ mod instruction;
 mod errors;
 mod vm;
 mod descriptor;
+mod object;
 
 use class_loader::ClassLoader;
 use vm::VM;

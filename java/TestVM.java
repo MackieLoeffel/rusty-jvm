@@ -401,4 +401,27 @@ public class TestVM {
         nativeBoolean(f < 1.0f);
         nativeBoolean(f > 1.0f);
     }
+
+    private static void arrays() {
+        long[][] l = new long[2][3];
+        int[][] i = new int[][] {{1}};
+        long[][] l2 = new long[2][2];
+        int[][] i2 = new int[][] {{1}};
+        nativeLong(l[0][1]);
+        l[0][1] = 5;
+        nativeLong(l[0][1]);
+        nativeInt(i[0][0]);
+        i[0][0] = 2;
+        nativeInt(i[0][0]);
+        nativeLong(l2[0][1]);
+        l2[0] = l[0];
+        nativeLong(l2[0][1]);
+        nativeInt(i2[0][0]);
+        i2[0] = i[0];
+        nativeInt(i2[0][0]);
+
+        nativeInt(l2.length);
+        nativeInt(l2[0].length);
+        nativeInt(l2[1].length);
+    }
 }
