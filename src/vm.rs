@@ -275,7 +275,14 @@ impl VM {
                     frame.sp -= count as usize;
                     frame.push(created);
                 }
-                // TODO NEW(String),
+                NEW(class) => {
+                    let instance = match Object::new_instance(&class, &mut self.classloader) {
+                        Ok(i) => i,
+                        // TODO throw class laoding exception
+                        Err(e) => panic!("Error loading class {}: {}", class, e),
+                    };
+                    frame.push(self.allocate_object(instance));
+                }
                 NEWARRAY(t) => {
                     let length = frame.pop();
                     // TODO throw NegativeArraySizeException exception
@@ -956,6 +963,27 @@ mod tests {
                  ("nativeInt", arg1!(2)),
                  ("nativeInt", arg1!(3)),
                  ("nativeInt", arg1!(2))]);
+    }
+
+    #[test]
+    fn object() {
+        run("TestVM",
+            "object",
+            vec![("nativeInt", arg1!(10)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeDouble", arg2!(20.0f64)),
+
+                 ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeDouble", arg2!(20.0f64)),
+
+                 ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(24i64)),
+                 ("nativeDouble", arg2!(20.0f64)),
+
+                 ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeDouble", arg2!(40.0f64))]);
     }
 
 }

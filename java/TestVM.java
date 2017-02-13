@@ -428,4 +428,34 @@ public class TestVM {
         nativeInt(l2[0].length);
         nativeInt(l2[1].length);
     }
+
+    private int intField;
+    private long longField = 2;
+    private double doubleField;
+    public TestVM(int a) {
+        intField = a;
+        doubleField = a * 2;
+    }
+
+    private static void object() {
+        TestVM a = new TestVM(10);
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+
+        a.intField = 20;
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+
+        a.longField += 22;
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+
+        a.doubleField *= 2;
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+    }
 }

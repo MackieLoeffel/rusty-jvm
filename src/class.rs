@@ -1,18 +1,24 @@
-use classfile_parser::ClassFile;
+use classfile_parser::{ClassFile, method_info, field_info};
 use classfile_parser::method_info::*;
+use classfile_parser::field_info::*;
 use classfile_parser::attribute_info::*;
 use instruction::{Instruction, Type};
 use parsed_class::ParsedClass;
-use descriptor::MethodDescriptor;
+use descriptor::{MethodDescriptor, FieldDescriptor};
+use class_loader::ClassLoader;
+use errors::ClassLoadingError;
 
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#40222
 pub const MAX_INSTRUCTIONS_PER_METHOD: usize = 65536;
+pub const OBJECT_NAME: &'static str = "java/lang/Object";
 
 #[derive(Debug)]
 pub struct Class {
     name: String,
-    super_class: String,
+    super_class: Option<String>,
     methods: Vec<Method>,
+    static_fields: Vec<Field>,
+    instance_fields: Vec<Field>,
 }
 
 #[derive(Debug)]
@@ -22,6 +28,16 @@ pub struct Method {
     descriptor: String,
     code: Option<Code>,
     words_for_params: usize,
+}
+
+#[derive(Debug)]
+pub struct Field {
+    access_flags: FieldAccessFlags,
+    // TODO: think of a better type
+    constant_value: Option<Result<[i32; 2], String>>,
+    name: String,
+    descriptor: String,
+    size: usize,
 }
 
 #[derive(Debug)]
@@ -35,17 +51,33 @@ pub struct Code {
 impl Class {
     pub fn from_class_file(parsed: &ClassFile) -> Result<Class, String> {
         let name = parsed.constant_class(parsed.this_class)?;
-        let super_class = parsed.constant_class(parsed.super_class)?;
+        let super_class = if name == OBJECT_NAME {
+            if parsed.super_class != 0 {
+                return Err("Object must not have a superclass".to_owned());
+            }
+            None
+        } else {
+            Some(parsed.constant_class(parsed.super_class)?.to_owned())
+        };
 
         let methods = parsed.methods
             .iter()
             .map(|info| Method::from_class_file(info, parsed))
-            .collect::<Result<Vec<Method>, String>>()?;
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let (static_fields, instance_fields) = parsed.fields
+            .iter()
+            .map(|info| Field::from_class_file(info, parsed))
+            .collect::<Result<Vec<_>, String>>()?
+            .into_iter()
+            .partition(|f| f.is_static());
 
         Ok(Class {
             name: name.to_owned(),
-            super_class: super_class.to_owned(),
+            super_class: super_class,
             methods: methods,
+            instance_fields: instance_fields,
+            static_fields: static_fields,
         })
     }
 
@@ -53,11 +85,27 @@ impl Class {
         self.methods.iter().find(|m| m.name() == name && m.descriptor() == descriptor)
     }
 
+    pub fn get_instance_size(classname: &str, classloader: &mut ClassLoader) -> Result<usize, ClassLoadingError> {
+        let mut cur_name = classname.to_owned();
+        let mut sum = 0;
+        loop {
+            let class = classloader.load_class(&cur_name)?;
+            sum += class.instance_fields().iter().map(|f| f.size()).sum();
+            cur_name = match class.super_class() {
+                Some(c) => c.to_owned(),
+                None => break,
+            }
+        }
+        Ok(sum)
+    }
+
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
     pub fn methods(&self) -> &Vec<Method> { &self.methods }
+    pub fn instance_fields(&self) -> &Vec<Field> { &self.instance_fields }
     #[allow(dead_code)]
-    pub fn super_class(&self) -> &str { &self.super_class }
+    pub fn static_fields(&self) -> &Vec<Field> { &self.static_fields }
+    pub fn super_class(&self) -> Option<&String> { self.super_class.as_ref() }
 }
 
 impl Method {
@@ -102,7 +150,7 @@ impl Method {
         };
 
         let mut words_for_params = parsed_descriptor.words_for_params();
-        if !info.access_flags.contains(STATIC) {
+        if !info.access_flags.contains(method_info::STATIC) {
             words_for_params += Type::Reference.word_size()
         };
 
@@ -136,6 +184,33 @@ impl Code {
     pub fn code(&self) -> &Vec<Instruction> { &self.code }
 }
 
+impl Field {
+    pub fn from_class_file(info: &FieldInfo, parsed: &ClassFile) -> Result<Field, String> {
+        let name = parsed.constant_utf8(info.name_index)?;
+        let descriptor = parsed.constant_utf8(info.descriptor_index)?;
+
+        let parsed_descriptor = match FieldDescriptor::parse(descriptor) {
+            Some(c) => c,
+            None => return Err(format!("invalid field descriptor for field {}", name)),
+        };
+
+        Ok(Field {
+            access_flags: info.access_flags,
+            name: name.to_owned(),
+            descriptor: descriptor.to_owned(),
+            size: parsed_descriptor.word_size(),
+            constant_value: None, // TODO
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn name(&self) -> &str { &self.name }
+    #[allow(dead_code)]
+    pub fn descriptor(&self) -> &str { &self.descriptor }
+    pub fn size(&self) -> usize { self.size }
+    pub fn is_static(&self) -> bool { self.access_flags.contains(field_info::STATIC) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,7 +228,8 @@ mod tests {
 
     #[test]
     fn super_class() {
-        assert_eq!(get_class().super_class(), "java/lang/Object");
+        assert_eq!(get_class().super_class().unwrap(),
+                   "com/mackie/rustyjvm/TestClassSuper");
     }
 
     #[test]
@@ -163,7 +239,7 @@ mod tests {
         let method = &class.methods[0];
         assert_eq!(method.name(), "<init>");
         assert_eq!(method.descriptor(), "()V");
-        assert_eq!(method.access_flags(), PUBLIC);
+        assert_eq!(method.access_flags(), method_info::PUBLIC);
     }
 
     #[test]
@@ -172,7 +248,8 @@ mod tests {
         let method = class.method_by_signature("main", "([Ljava/lang/String;)V").unwrap();
         assert_eq!(method.name(), "main");
         assert_eq!(method.descriptor(), "([Ljava/lang/String;)V");
-        assert_eq!(method.access_flags(), PUBLIC | STATIC);
+        assert_eq!(method.access_flags(),
+                   method_info::PUBLIC | method_info::STATIC);
     }
 
     #[test]
@@ -187,5 +264,23 @@ mod tests {
         assert_eq!(code.max_stack(), 1);
         assert_eq!(code.max_locals(), 2);
         assert_eq!(code.code().len(), 3);
+    }
+
+    #[test]
+    fn fields_size() {
+        let class = get_class();
+        assert_eq!(class.instance_fields().len(), 2);
+        assert_eq!(class.instance_fields()[0].name(), "d");
+        assert_eq!(class.instance_fields()[0].descriptor(), "D");
+        assert_eq!(class.static_fields().len(), 1);
+        assert_eq!(class.static_fields()[0].name(), "c");
+        assert_eq!(class.static_fields()[0].descriptor(), "S");
+    }
+
+    #[test]
+    fn field_size() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        assert_eq!(Class::get_instance_size("com/mackie/rustyjvm/TestClass", &mut classloader).unwrap(),
+                   6);
     }
 }
