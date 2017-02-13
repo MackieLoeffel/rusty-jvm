@@ -949,6 +949,10 @@ mod tests {
                  ("nativeLong", arg2!(5i64)),
                  ("nativeInt", arg1!(1)),
                  ("nativeInt", arg1!(2)),
+
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(2i64)),
+
                  ("nativeInt", arg1!(2)),
                  ("nativeInt", arg1!(3)),
                  ("nativeInt", arg1!(2))]);

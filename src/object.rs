@@ -57,7 +57,7 @@ impl ArrayObject {
     }
     pub fn get2(&self, index: i32) -> [i32; 2] {
         assert!(self.content_needs_two_words);
-        [self.data[index as usize], self.data[index as usize + 1]]
+        [self.data[2 * (index as usize)], self.data[2 * (index as usize) + 1]]
     }
 
     pub fn set(&mut self, index: i32, val: i32) {
@@ -66,7 +66,7 @@ impl ArrayObject {
     }
     pub fn set2(&mut self, index: i32, val: [i32; 2]) {
         assert!(self.content_needs_two_words);
-        self.data[index as usize] = val[0];
-        self.data[index as usize + 1] = val[1];
+        self.data[2 * (index as usize)] = val[0];
+        self.data[2 * (index as usize) + 1] = val[1];
     }
 }

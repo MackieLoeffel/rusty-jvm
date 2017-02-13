@@ -407,6 +407,7 @@ public class TestVM {
         int[][] i = new int[][] {{1}};
         long[][] l2 = new long[2][2];
         int[][] i2 = new int[][] {{1}};
+        long[] l3 = new long[] {1, 2};
         nativeLong(l[0][1]);
         l[0][1] = 5;
         nativeLong(l[0][1]);
@@ -419,6 +420,9 @@ public class TestVM {
         nativeInt(i2[0][0]);
         i2[0] = i[0];
         nativeInt(i2[0][0]);
+
+        nativeLong(l3[0]);
+        nativeLong(l3[1]);
 
         nativeInt(l2.length);
         nativeInt(l2[0].length);
