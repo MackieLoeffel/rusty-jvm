@@ -6,6 +6,7 @@ use instruction::Type::*;
 use parsed_class::MethodRef;
 use descriptor::FieldDescriptor;
 use object::{Object, ArrayObject};
+use class::Class;
 use std::mem;
 use std::char;
 use std::ops::{Mul, Add, Div, Sub, Rem, BitAnd, BitOr, BitXor};
@@ -30,6 +31,7 @@ pub struct Frame {
     sp: usize,
     local_vars: Vec<i32>,
     stack: Vec<i32>,
+    current_class: String,
 }
 
 impl VM {
@@ -112,6 +114,7 @@ impl VM {
             local_vars: local_vars,
             stack: stack,
             code: code.code().clone(),
+            current_class: class_name.to_owned(),
         };
         mem::swap(&mut new_frame, calling_frame);
         self.frames.push(new_frame);
@@ -507,6 +510,19 @@ impl VM {
                     }
                 }
 
+                INVOKESPECIAL(method) => {
+                    // special lookup procedure for invoke special
+                    // see https://docs.oracle.com/javase/specs/jvms/se6/html/Instructions2.doc6.html
+                    // TODO replace unwraps with throw class loading exception
+                    if self.classloader.load_class(&frame.current_class).unwrap().has_acc_super_flag() &&
+                       method.name() != "<init>" &&
+                       Class::is_real_super_class(method.class(), &frame.current_class, &mut self.classloader)
+                        .unwrap() {
+                        panic!("special lookup procedure for invoke special not implemented, MethodRef: {:?}",
+                               method);
+                    }
+                    self.invoke_method_ref(&method, &mut frame);
+                }
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
                 }
@@ -526,6 +542,7 @@ impl Frame {
             stack: stack,
             local_vars: Vec::new(),
             code: Vec::new(),
+            current_class: "".to_owned(),
         }
     }
 
@@ -591,11 +608,13 @@ mod tests {
     macro_rules! arg1 { ($val: expr) => {{vec![unsafe {mem::transmute::<_, i32>($val)}]}} }
     macro_rules! arg2 { ($val: expr) => {{unsafe {mem::transmute::<_, [i32; 2]>($val)}.to_vec()}} }
 
-    fn run(class: &str, method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
+    const TEST_CLASS: &'static str = "com/mackie/rustyjvm/TestVM";
+
+    fn run(method: &str, native_calls: Vec<(&str, Vec<i32>)>) {
         let classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
         let mut vm = VM::new(classloader);
         let mut start_frame = Frame::dummy_frame(0);
-        vm.invoke_method(class, method, "()V", &mut start_frame);
+        vm.invoke_method(TEST_CLASS, method, "()V", &mut start_frame);
         vm.run(start_frame);
 
         for index in 0..max(native_calls.len(), vm.native_calls.len()) {
@@ -619,7 +638,7 @@ mod tests {
     #[test]
     fn print_class() {
         let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
-        let class = classloader.load_class("TestVM").unwrap();
+        let class = classloader.load_class(TEST_CLASS).unwrap();
         for method in class.methods() {
             println!("Method {} {}:", method.descriptor(), method.name());
             match method.code() {
@@ -635,19 +654,17 @@ mod tests {
     }
 
     #[test]
-    fn simple() { run("TestVM", "simple", vec![("nativeInt", vec![1])]); }
+    fn simple() { run("simple", vec![("nativeInt", vec![1])]); }
 
     #[test]
     fn staticcall() {
-        run("TestVM",
-            "staticcall",
+        run("staticcall",
             vec![("nativeLong", arg2!(1i64)), ("nativeLong", arg2!(2i64)), ("nativeLong", arg2!(2i64))]);
     }
 
     #[test]
     fn add() {
-        run("TestVM",
-            "add",
+        run("add",
             vec![("nativeInt", arg1!(6)),
                  ("nativeInt", arg1!(6)),
                  ("nativeInt", arg1!(-2)),
@@ -670,8 +687,7 @@ mod tests {
 
     #[test]
     fn sub() {
-        run("TestVM",
-            "sub",
+        run("sub",
             vec![("nativeInt", arg1!(-2)),
                  ("nativeInt", arg1!(-2)),
                  ("nativeInt", arg1!(1)),
@@ -690,8 +706,7 @@ mod tests {
 
     #[test]
     fn mul() {
-        run("TestVM",
-            "mul",
+        run("mul",
             vec![("nativeInt", arg1!(8)),
                  ("nativeInt", arg1!(8)),
                  ("nativeInt", arg1!(4)),
@@ -710,8 +725,7 @@ mod tests {
 
     #[test]
     fn div() {
-        run("TestVM",
-            "div",
+        run("div",
             vec![("nativeInt", arg1!(1)),
                  ("nativeInt", arg1!(1)),
                  ("nativeInt", arg1!(-1)),
@@ -732,8 +746,7 @@ mod tests {
 
     #[test]
     fn rem() {
-        run("TestVM",
-            "rem",
+        run("rem",
             vec![("nativeInt", arg1!(2)),
                  ("nativeInt", arg1!(2)),
                  ("nativeInt", arg1!(-2)),
@@ -754,8 +767,7 @@ mod tests {
 
     #[test]
     fn neg() {
-        run("TestVM",
-            "neg",
+        run("neg",
             vec![("nativeInt", arg1!(-4)),
                  ("nativeInt", arg1!(-4)),
                  ("nativeInt", arg1!(1)),
@@ -776,8 +788,7 @@ mod tests {
 
     #[test]
     fn shift() {
-        run("TestVM",
-            "shift",
+        run("shift",
             vec![("nativeInt", arg1!(0xF0)),
                  ("nativeInt", arg1!(0xF0)),
                  ("nativeInt", arg1!(0x1E)),
@@ -832,8 +843,7 @@ mod tests {
 
     #[test]
     fn bitops() {
-        run("TestVM",
-            "bitops",
+        run("bitops",
             vec![("nativeInt", arg1!(0b1000)),
                  ("nativeInt", arg1!(0b1000)),
                  ("nativeInt", arg1!(0b1110)),
@@ -850,8 +860,7 @@ mod tests {
 
     #[test]
     fn iinc() {
-        run("TestVM",
-            "iinc",
+        run("iinc",
             vec![("nativeInt", arg1!(0x80000000u32)),
                  ("nativeInt", arg1!(0x7fffffff)),
                  ("nativeInt", arg1!(0x7ffffff0))]);
@@ -859,8 +868,7 @@ mod tests {
 
     #[test]
     fn constants() {
-        run("TestVM",
-            "constants",
+        run("constants",
             vec![("nativeInt", arg1!(0)),
                  ("nativeInt", arg1!(1337)),
                  ("nativeInt", arg1!(0x4000000)),
@@ -879,8 +887,7 @@ mod tests {
 
     #[test]
     fn conversions() {
-        run("TestVM",
-            "conversions",
+        run("conversions",
             vec![("nativeByte", arg1!(-1)),
                  ("nativeByte", arg1!(-1)),
                  ("nativeShort", arg1!(-1)),
@@ -919,8 +926,7 @@ mod tests {
 
     #[test]
     fn jumps() {
-        run("TestVM",
-            "jumps",
+        run("jumps",
             vec![("nativeInt", arg1!(-10)),
                  ("nativeInt", arg1!(-9)),
                  ("nativeInt", arg1!(1)),
@@ -946,8 +952,7 @@ mod tests {
 
     #[test]
     fn arrays() {
-        run("TestVM",
-            "arrays",
+        run("arrays",
             vec![("nativeLong", arg2!(0i64)),
                  ("nativeLong", arg2!(5i64)),
                  ("nativeInt", arg1!(1)),
@@ -967,8 +972,7 @@ mod tests {
 
     #[test]
     fn object() {
-        run("TestVM",
-            "object",
+        run("object",
             vec![("nativeInt", arg1!(10)),
                  ("nativeLong", arg2!(2i64)),
                  ("nativeDouble", arg2!(20.0f64)),

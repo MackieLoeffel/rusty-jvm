@@ -37,12 +37,12 @@ impl ClassLoader {
                 None => unreachable!(),
             };
         }
-        self.load_file(name.split('/').last().unwrap_or(name))
+        self.load_file(name)
     }
 
-    pub fn load_file(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
+    fn load_file(&mut self, name: &str) -> Result<&Class, ClassLoadingError> {
         // println!("Loading class: {}", name);
-        let classfilename = format!("{}.class", name);
+        let classfilename = format!("{}.class", name.split('/').last().unwrap_or(name));
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,
             Err(err) => return Err(ClassLoadingError::NoClassDefFound(Some(err))),
@@ -72,6 +72,11 @@ impl ClassLoader {
 
         let class_name = class.name().to_owned();
         assert!(self.loaded_classes.insert(class_name.clone(), class).is_none());
+        if class_name != name {
+            return Err(ClassLoadingError::ClassFormatError(format!("Expected class {}, but found {}",
+                                                                   name,
+                                                                   class_name)));
+        }
 
         Ok(&self.loaded_classes[&class_name])
     }
@@ -113,7 +118,7 @@ mod tests {
     #[test]
     fn good_class() {
         let mut classloader = setup();
-        let class = classloader.load_class("TestClass").unwrap();
+        let class = classloader.load_class("com/mackie/rustyjvm/TestClass").unwrap();
         assert_eq!(class.name(), "com/mackie/rustyjvm/TestClass");
     }
 }

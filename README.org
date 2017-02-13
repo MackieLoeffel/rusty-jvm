@@ -17,13 +17,16 @@
        - [X] INVOKESTATIC
        - [ ] INVOKEINTERFACE
        - [ ] INVOKESPECIAL
+         - [ ] implement basics
+         - [ ] implement ACC_SUPER-flag
        - [ ] INVOKEVIRTUAL
      - [-] implement objects
-       - [ ] implement object creation
+       - [X] implement object creation
        - [X] implement arrays
        - [ ] implement strings
      - [ ] implement casts
      - [ ] implement field access
+     - [ ] implement class initialization methods
      - [ ] implement other instructions
    - [X] setup tests with real jvm
    - [ ] implement tableswitch and lookup switch

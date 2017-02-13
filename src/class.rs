@@ -1,4 +1,5 @@
-use classfile_parser::{ClassFile, method_info, field_info};
+use classfile_parser;
+use classfile_parser::{ClassFile, method_info, field_info, ClassAccessFlags};
 use classfile_parser::method_info::*;
 use classfile_parser::field_info::*;
 use classfile_parser::attribute_info::*;
@@ -16,6 +17,7 @@ pub const OBJECT_NAME: &'static str = "java/lang/Object";
 pub struct Class {
     name: String,
     super_class: Option<String>,
+    access_flags: ClassAccessFlags,
     methods: Vec<Method>,
     static_fields: Vec<Field>,
     instance_fields: Vec<Field>,
@@ -75,6 +77,7 @@ impl Class {
         Ok(Class {
             name: name.to_owned(),
             super_class: super_class,
+            access_flags: parsed.access_flags,
             methods: methods,
             instance_fields: instance_fields,
             static_fields: static_fields,
@@ -99,6 +102,23 @@ impl Class {
         Ok(sum)
     }
 
+    pub fn is_real_super_class(superclass: &str,
+                               class: &str,
+                               classloader: &mut ClassLoader)
+                               -> Result<bool, ClassLoadingError> {
+        let mut cur_name = class.to_owned();
+        loop {
+            let class = classloader.load_class(&cur_name)?;
+            cur_name = match class.super_class() {
+                Some(c) => c.to_owned(),
+                None => return Ok(false),
+            };
+            if cur_name == superclass {
+                return Ok(true);
+            }
+        }
+    }
+
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
     pub fn methods(&self) -> &Vec<Method> { &self.methods }
@@ -106,6 +126,7 @@ impl Class {
     #[allow(dead_code)]
     pub fn static_fields(&self) -> &Vec<Field> { &self.static_fields }
     pub fn super_class(&self) -> Option<&String> { self.super_class.as_ref() }
+    pub fn has_acc_super_flag(&self) -> bool { self.access_flags.contains(classfile_parser::SUPER) }
 }
 
 impl Method {
@@ -227,6 +248,11 @@ mod tests {
     }
 
     #[test]
+    fn acc_super() {
+        assert_eq!(get_class().has_acc_super_flag(), true);
+    }
+
+    #[test]
     fn super_class() {
         assert_eq!(get_class().super_class().unwrap(),
                    "com/mackie/rustyjvm/TestClassSuper");
@@ -275,6 +301,31 @@ mod tests {
         assert_eq!(class.static_fields().len(), 1);
         assert_eq!(class.static_fields()[0].name(), "c");
         assert_eq!(class.static_fields()[0].descriptor(), "S");
+    }
+
+    #[test]
+    fn is_super_class() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        assert_eq!(Class::is_real_super_class("com/mackie/rustyjvm/TestClass",
+                                              "com/mackie/rustyjvm/TestClass",
+                                              &mut classloader)
+                       .unwrap(),
+                   false);
+        assert_eq!(Class::is_real_super_class("com/mackie/rustyjvm/TestClass",
+                                              "com/mackie/rustyjvm/TestClassSuper",
+                                              &mut classloader)
+                       .unwrap(),
+                   false);
+        assert_eq!(Class::is_real_super_class("com/mackie/rustyjvm/TestClassSuper",
+                                              "com/mackie/rustyjvm/TestClass",
+                                              &mut classloader)
+                       .unwrap(),
+                   true);
+        assert_eq!(Class::is_real_super_class("java/lang/Object",
+                                              "com/mackie/rustyjvm/TestClass",
+                                              &mut classloader)
+                       .unwrap(),
+                   true);
     }
 
     #[test]
