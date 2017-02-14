@@ -15,7 +15,10 @@ classfiles: $(CLASS_FILES)
 $(JAVA_DIR)/%.class: $(JAVA_DIR)/%.java Makefile
 	javac $(JAVAC_FLAGS) $<
 
-testfiles: $(TEST_OUTPUTS)
+testfiles: $(TEST_OUTPUTS_DIR) $(TEST_OUTPUTS)
+
+$(TEST_OUTPUTS_DIR):
+	mkdir -p $(TEST_OUTPUTS_DIR)
 
 $(TEST_OUTPUTS_DIR)/%.out: $(JAVA_DIR)/%.class Makefile
 	(cd $(JAVA_DIR) && java $* > ../$@)
