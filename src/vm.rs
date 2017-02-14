@@ -5,7 +5,7 @@ use instruction::Instruction::*;
 use instruction::Type::*;
 use parsed_class::MethodRef;
 use descriptor::FieldDescriptor;
-use object::{Object, ArrayObject};
+use object::{Object, ArrayObject, InstanceObject};
 use class::Class;
 use std::mem;
 use std::char;
@@ -140,9 +140,15 @@ impl VM {
         self.heap.push(Some(object));
         (self.heap.len() - 1) as i32
     }
+    fn get_object(heap: &mut Vec<Option<Object>>, index: i32) -> &mut Object {
 
-    fn get_array(&mut self, index: i32) -> &mut ArrayObject {
-        self.heap[index as usize].as_mut().expect("Invalid Reference").as_array()
+        heap[index as usize].as_mut().expect("Invalid Reference")
+    }
+
+    fn get_array(&mut self, index: i32) -> &mut ArrayObject { VM::get_object(&mut self.heap, index).as_array() }
+
+    fn get_instance(heap: &mut Vec<Option<Object>>, index: i32) -> &mut InstanceObject {
+        VM::get_object(heap, index).as_instance()
     }
 
     fn run(&mut self, start_frame: Frame) {
@@ -440,6 +446,36 @@ impl VM {
                 DUP => {
                     let val = frame.top();
                     frame.push(val);
+                }
+
+                GETFIELD(field) => {
+                    let objindex = frame.pop();
+                    // TODO throw NullPointerException
+                    let obj = VM::get_instance(&mut self.heap, objindex);
+                    if field.typ().is_double_sized() {
+                        // TODO replace unwrap with exception throw
+                        frame.push2(obj.get_field2(&field, &mut self.classloader).unwrap());
+                    } else {
+                        // TODO replace unwrap with exception throw
+                        frame.push(obj.get_field(&field, &mut self.classloader).unwrap());
+                    }
+                }
+                PUTFIELD(field) => {
+                    if field.typ().is_double_sized() {
+                        let value = frame.pop2();
+                        let objindex = frame.pop();
+                        // TODO throw NullPointerException
+                        let obj = VM::get_instance(&mut self.heap, objindex);
+                        // TODO replace unwrap with exception throw
+                        obj.set_field2(&field, value, &mut self.classloader).unwrap();
+                    } else {
+                        let value = frame.pop();
+                        let objindex = frame.pop();
+                        // TODO throw NullPointerException
+                        let obj = VM::get_instance(&mut self.heap, objindex);
+                        // TODO replace unwrap with exception throw
+                        obj.set_field(&field, value, &mut self.classloader).unwrap();
+                    }
                 }
 
                 i @ DCMPG | i @ DCMPL => {
@@ -976,18 +1012,38 @@ mod tests {
             vec![("nativeInt", arg1!(10)),
                  ("nativeLong", arg2!(2i64)),
                  ("nativeDouble", arg2!(20.0f64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeInt", arg1!(50)),
 
                  ("nativeInt", arg1!(20)),
                  ("nativeLong", arg2!(2i64)),
                  ("nativeDouble", arg2!(20.0f64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeInt", arg1!(50)),
 
                  ("nativeInt", arg1!(20)),
                  ("nativeLong", arg2!(24i64)),
                  ("nativeDouble", arg2!(20.0f64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeInt", arg1!(50)),
 
                  ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(24i64)),
+                 ("nativeDouble", arg2!(40.0f64)),
+                 ("nativeLong", arg2!(0i64)),
+                 ("nativeInt", arg1!(50)),
+
+                 ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(24i64)),
+                 ("nativeDouble", arg2!(40.0f64)),
                  ("nativeLong", arg2!(2i64)),
-                 ("nativeDouble", arg2!(40.0f64))]);
+                 ("nativeInt", arg1!(50)),
+
+                 ("nativeInt", arg1!(20)),
+                 ("nativeLong", arg2!(24i64)),
+                 ("nativeDouble", arg2!(40.0f64)),
+                 ("nativeLong", arg2!(2i64)),
+                 ("nativeInt", arg1!(200))]);
     }
 
 }

@@ -1,5 +1,7 @@
 use classfile_parser::*;
 use classfile_parser::constant_info::*;
+use descriptor::FieldDescriptor;
+use instruction::Type;
 
 pub trait ParsedClass {
     fn constant(&self, index: u16) -> Result<&ConstantInfo, String>;
@@ -16,16 +18,31 @@ pub struct FieldRef {
     name: String,
     class: String,
     descriptor: String,
+    typ: Type,
 }
 impl FieldRef {
     #[allow(dead_code)]
-    pub fn new(name: &str, class: &str, descriptor: &str) -> FieldRef {
-        FieldRef {
+    pub fn new(name: &str, class: &str, descriptor: &str) -> Result<FieldRef, String> {
+        let typ = match FieldDescriptor::parse(descriptor) {
+            Some(d) => d.into_simple_typ(),
+            None => return Err(format!("Invalid Field Descriptor: {}", descriptor)),
+        };
+        Ok(FieldRef {
             name: name.to_owned(),
             class: class.to_owned(),
             descriptor: descriptor.to_owned(),
-        }
+            typ: typ,
+        })
     }
+
+    #[inline(always)]
+    pub fn name(&self) -> &str { &self.name }
+    #[inline(always)]
+    pub fn class(&self) -> &str { &self.class }
+    #[inline(always)]
+    pub fn descriptor(&self) -> &str { &self.descriptor }
+    #[inline(always)]
+    pub fn typ(&self) -> &Type { &self.typ }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,11 +104,7 @@ impl ParsedClass for ClassFile {
         match *self.constant(index)? {
             ConstantInfo::FieldRef(ref s) => {
                 let (name, typ) = self.constant_name_and_type(s.name_and_type_index)?;
-                Ok(FieldRef {
-                    class: self.constant_class(s.class_index)?.to_owned(),
-                    name: name.to_owned(),
-                    descriptor: typ.to_owned(),
-                })
+                Ok(FieldRef::new(name, self.constant_class(s.class_index)?, typ)?)
             }
             _ => Err("Not a class constant".to_owned()),
         }

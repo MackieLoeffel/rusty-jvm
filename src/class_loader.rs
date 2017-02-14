@@ -45,12 +45,12 @@ impl ClassLoader {
         let classfilename = format!("{}.class", name.split('/').last().unwrap_or(name));
         let mut file = match File::open(self.load_dir.join(classfilename)) {
             Ok(file) => file,
-            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Some(err))),
+            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Err(err))),
         };
         let mut bytes = Vec::new();
         match file.read_to_end(&mut bytes) {
             Ok(..) => {}
-            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Some(err))),
+            Err(err) => return Err(ClassLoadingError::NoClassDefFound(Err(err))),
         };
 
         let classfile = match class_parser_option(&bytes) {
@@ -73,9 +73,9 @@ impl ClassLoader {
         let class_name = class.name().to_owned();
         assert!(self.loaded_classes.insert(class_name.clone(), class).is_none());
         if class_name != name {
-            return Err(ClassLoadingError::ClassFormatError(format!("Expected class {}, but found {}",
-                                                                   name,
-                                                                   class_name)));
+            return Err(ClassLoadingError::NoClassDefFound(Ok(format!("Expected class {}, but found {}",
+                                                                     name,
+                                                                     class_name))));
         }
 
         Ok(&self.loaded_classes[&class_name])

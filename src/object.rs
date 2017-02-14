@@ -2,6 +2,7 @@ use class_loader::ClassLoader;
 use instruction::Type;
 use errors::ClassLoadingError;
 use class::Class;
+use parsed_class::FieldRef;
 
 #[derive(Debug)]
 pub enum Object {
@@ -91,6 +92,38 @@ impl InstanceObject {
             data: data.into_boxed_slice(),
         })
     }
+
+    pub fn get_field(&self, fieldref: &FieldRef, classloader: &mut ClassLoader) -> Result<i32, ClassLoadingError> {
+        Ok(self.data[Class::get_field_offset(fieldref, classloader)?])
+    }
+
+    pub fn get_field2(&self,
+                      fieldref: &FieldRef,
+                      classloader: &mut ClassLoader)
+                      -> Result<[i32; 2], ClassLoadingError> {
+        let offset = Class::get_field_offset(fieldref, classloader)?;
+        Ok([self.data[offset], self.data[offset + 1]])
+    }
+
+    pub fn set_field(&mut self,
+                     fieldref: &FieldRef,
+                     val: i32,
+                     classloader: &mut ClassLoader)
+                     -> Result<(), ClassLoadingError> {
+        self.data[Class::get_field_offset(fieldref, classloader)?] = val;
+        Ok(())
+    }
+
+    pub fn set_field2(&mut self,
+                      fieldref: &FieldRef,
+                      val: [i32; 2],
+                      classloader: &mut ClassLoader)
+                      -> Result<(), ClassLoadingError> {
+        let offset = Class::get_field_offset(fieldref, classloader)?;
+        self.data[offset] = val[0];
+        self.data[offset + 1] = val[1];
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -105,6 +138,47 @@ mod tests {
         assert_eq!(array.get2(0), [1, 2]);
         assert_eq!(array.get2(1), [3, 4]);
         assert_eq!(array.get2(2), [0, 0]);
+    }
+
+    #[test]
+    fn instance() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        let mut instance = InstanceObject::new("com/mackie/rustyjvm/TestObject", &mut classloader).unwrap();
+        assert_eq!(instance.data.len(), 8);
+        assert_eq!(instance.get_field(&FieldRef::new("a", "com/mackie/rustyjvm/TestObject", "I").unwrap(),
+                                  &mut classloader)
+                       .unwrap(),
+                   0);
+        assert_eq!(instance.get_field2(&FieldRef::new("c", "com/mackie/rustyjvm/TestObject", "J").unwrap(),
+                                   &mut classloader)
+                       .unwrap(),
+                   [0, 0]);
+        assert_eq!(instance.set_field2(&FieldRef::new("c", "com/mackie/rustyjvm/TestObject", "J").unwrap(),
+                                   [1, 2],
+                                   &mut classloader)
+                       .unwrap(),
+                   ());
+        assert_eq!(instance.get_field(&FieldRef::new("a", "com/mackie/rustyjvm/TestObject", "I").unwrap(),
+                                  &mut classloader)
+                       .unwrap(),
+                   0);
+        assert_eq!(instance.get_field2(&FieldRef::new("c", "com/mackie/rustyjvm/TestObject", "J").unwrap(),
+                                   &mut classloader)
+                       .unwrap(),
+                   [1, 2]);
+        assert_eq!(instance.set_field(&FieldRef::new("a", "com/mackie/rustyjvm/TestObject", "I").unwrap(),
+                                  3,
+                                  &mut classloader)
+                       .unwrap(),
+                   ());
+        assert_eq!(instance.get_field(&FieldRef::new("a", "com/mackie/rustyjvm/TestObject", "I").unwrap(),
+                                  &mut classloader)
+                       .unwrap(),
+                   3);
+        assert_eq!(instance.get_field2(&FieldRef::new("c", "com/mackie/rustyjvm/TestObject", "J").unwrap(),
+                                   &mut classloader)
+                       .unwrap(),
+                   [1, 2]);
     }
 
 }

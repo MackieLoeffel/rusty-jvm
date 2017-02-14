@@ -4,7 +4,7 @@ use classfile_parser::method_info::*;
 use classfile_parser::field_info::*;
 use classfile_parser::attribute_info::*;
 use instruction::{Instruction, Type};
-use parsed_class::ParsedClass;
+use parsed_class::{ParsedClass, FieldRef};
 use descriptor::{MethodDescriptor, FieldDescriptor};
 use class_loader::ClassLoader;
 use errors::ClassLoadingError;
@@ -100,6 +100,46 @@ impl Class {
             }
         }
         Ok(sum)
+    }
+
+    /// calculates the offset of a specific field in a class
+    /// the class in fieldref is the class, for which the offset should
+    /// be calculated, not the class with the field definiton
+    /// the first variable in Object has offset 0, the last variable in the current
+    /// class has the biggest offset. This is to ensure, that upcasting works correctly
+    /// and we don't have to do anything there
+    /// TODO think about handling static fields, which shadow instance fields
+    pub fn get_field_offset(fieldref: &FieldRef, classloader: &mut ClassLoader) -> Result<usize, ClassLoadingError> {
+        let mut cur_name = fieldref.class().to_owned();
+        // None, if we didn't find the field yet
+        //  otherwise contains the current offset up to this superclass
+        let mut offset = None;
+        loop {
+            let class = classloader.load_class(&cur_name)?;
+            let mut current_offset = 0;
+            let mut found = false;
+            for field in class.instance_fields() {
+                if offset.is_none() && field.name() == fieldref.name() && field.descriptor() == fieldref.descriptor() {
+                    found = true;
+                    break;
+                }
+                current_offset += field.size()
+            }
+            if found {
+                assert!(offset.is_none());
+                offset = Some(current_offset);
+            } else {
+                offset = offset.map(|v| v + current_offset);
+            }
+            cur_name = match class.super_class() {
+                Some(c) => c.to_owned(),
+                None => break,
+            }
+        }
+        match offset {
+            Some(o) => Ok(o),
+            None => Err(ClassLoadingError::NoSuchFieldError(fieldref.clone())),
+        }
     }
 
     pub fn is_real_super_class(superclass: &str,
@@ -295,9 +335,9 @@ mod tests {
     #[test]
     fn fields_size() {
         let class = get_class();
-        assert_eq!(class.instance_fields().len(), 2);
-        assert_eq!(class.instance_fields()[0].name(), "d");
-        assert_eq!(class.instance_fields()[0].descriptor(), "D");
+        assert_eq!(class.instance_fields().len(), 3);
+        assert_eq!(class.instance_fields()[0].name(), "a");
+        assert_eq!(class.instance_fields()[0].descriptor(), "I");
         assert_eq!(class.static_fields().len(), 1);
         assert_eq!(class.static_fields()[0].name(), "c");
         assert_eq!(class.static_fields()[0].descriptor(), "S");
@@ -329,9 +369,39 @@ mod tests {
     }
 
     #[test]
+    fn field_offset() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("a", "com/mackie/rustyjvm/TestClass", "I").unwrap(),
+                                           &mut classloader)
+                       .unwrap(),
+                   4);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("c", "com/mackie/rustyjvm/TestClass", "J").unwrap(),
+                                           &mut classloader)
+                       .unwrap(),
+                   1);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("d", "com/mackie/rustyjvm/TestClass", "B").unwrap(),
+                                           &mut classloader)
+                       .unwrap(),
+                   3);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("d", "com/mackie/rustyjvm/TestClass", "D").unwrap(),
+                                           &mut classloader)
+                       .unwrap(),
+                   5);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("e", "com/mackie/rustyjvm/TestClass", "[D").unwrap(),
+                                           &mut classloader)
+                       .unwrap(),
+                   7);
+        assert_eq!(Class::get_field_offset(&FieldRef::new("c", "com/mackie/rustyjvm/TestClass", "S").unwrap(),
+                                           &mut classloader)
+                       .is_err(),
+                   true);
+    }
+
+
+    #[test]
     fn field_size() {
         let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
         assert_eq!(Class::get_instance_size("com/mackie/rustyjvm/TestClass", &mut classloader).unwrap(),
-                   6);
+                   8);
     }
 }

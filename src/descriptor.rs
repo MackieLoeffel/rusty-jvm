@@ -97,6 +97,8 @@ impl FieldDescriptor {
         assert!(num_less_arrays <= self.num_array);
         as_type(&self.typ, self.num_array - num_less_arrays)
     }
+
+    pub fn into_simple_typ(self) -> Type { self.simple_typ }
 }
 
 impl Deref for FieldDescriptor {

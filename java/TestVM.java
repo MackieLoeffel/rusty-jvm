@@ -1,6 +1,14 @@
 package com.mackie.rustyjvm;
 
-public class TestVM {
+class TestVMSuper {
+    protected long superLong;
+    protected int superInt;
+    public TestVMSuper(int intv) {
+        superInt = intv;
+    }
+}
+
+public class TestVM extends TestVMSuper {
     public static native void nativeBoolean(boolean i);
     public static native void nativeChar(char i);
     public static native void nativeByte(byte i);
@@ -432,30 +440,53 @@ public class TestVM {
     private int intField;
     private long longField = 2;
     private double doubleField;
-    public TestVM(int a) {
+    public TestVM(int a, int b) {
+        super(b);
         intField = a;
         doubleField = a * 2;
     }
 
     private static void object() {
-        TestVM a = new TestVM(10);
+        TestVM a = new TestVM(10, 50);
         nativeInt(a.intField);
         nativeLong(a.longField);
         nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
 
         a.intField = 20;
         nativeInt(a.intField);
         nativeLong(a.longField);
         nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
 
         a.longField += 22;
         nativeInt(a.intField);
         nativeLong(a.longField);
         nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
 
         a.doubleField *= 2;
         nativeInt(a.intField);
         nativeLong(a.longField);
         nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
+
+        a.superLong += 2;
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
+
+        a.superInt = 200;
+        nativeInt(a.intField);
+        nativeLong(a.longField);
+        nativeDouble(a.doubleField);
+        nativeLong(a.superLong);
+        nativeInt(a.superInt);
     }
 }
