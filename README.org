@@ -25,8 +25,8 @@
        - [X] implement arrays
        - [ ] implement strings
      - [ ] implement casts
-     - [ ] implement field access
-       - [ ] instance fields
+     - [-] implement field access
+       - [X] instance fields
        - [ ] static fields
      - [ ] implement class initialization methods
      - [ ] implement other instructions
