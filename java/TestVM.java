@@ -6,6 +6,53 @@ class TestVMSuper {
     public TestVMSuper(int intv) {
         superInt = intv;
     }
+
+    public long virtualMethod(long a) {
+        TestVM.nativeInt(200);
+        TestVM.nativeLong(a);
+        return a + 100;
+    }
+    public static double staticMethod(double a) {
+        TestVM.nativeInt(2);
+        TestVM.nativeDouble(a);
+        a = a * 3;
+        return a;
+    }
+
+    private void privateMethod() {
+        TestVM.nativeInt(1337);
+    }
+}
+
+class TestVMOtherSuper {
+    public long virtualMethod(long a) {
+        TestVM.nativeInt(2000);
+        TestVM.nativeLong(a);
+        return a + 100;
+    }
+    public static double staticMethod(double a) {
+        TestVM.nativeInt(3);
+        TestVM.nativeDouble(a);
+        a = a * 4;
+        return a;
+    }
+}
+
+class TestVMOther extends TestVMOtherSuper {
+    public long virtualMethod(long a) {
+        TestVM.nativeInt(1000);
+        a = super.virtualMethod(a + 10);
+        TestVM.nativeInt(3000);
+        TestVM.nativeLong(a);
+        return a;
+    }
+
+    public static double staticMethod(double a) {
+        TestVM.nativeInt(4);
+        TestVM.nativeDouble(a);
+        a = a * 5;
+        return a;
+    }
 }
 
 public class TestVM extends TestVMSuper {
@@ -24,17 +71,47 @@ public class TestVM extends TestVMSuper {
         nativeInt(a);
     }
 
-    public static void staticcall() {
-        long a = 1;
-        a = staticMethod(a);
-        nativeLong(a);
+    public static void invoke() {
+        TestVM vm = new TestVM(1, 1);
+        TestVMSuper vmSuper = vm;
+        TestVMSuper vmSuperReal = new TestVMSuper(2);
+        TestVMOther other = new TestVMOther();
+        TestVMOtherSuper otherSuper = other;
+        TestVMOtherSuper otherSuperReal = new TestVMOtherSuper();
+        nativeLong(vm.virtualMethod(1));
+        nativeLong(vmSuper.virtualMethod(1));
+        nativeLong(vmSuperReal.virtualMethod(1));
+        nativeLong(other.virtualMethod(1));
+        nativeLong(otherSuper.virtualMethod(1));
+        nativeLong(otherSuperReal.virtualMethod(1));
+
+        nativeDouble(vm.staticMethod(1));
+        nativeDouble(vmSuper.staticMethod(1));
+        nativeDouble(vmSuperReal.staticMethod(1));
+        nativeDouble(other.staticMethod(1));
+        nativeDouble(otherSuper.staticMethod(1));
+        nativeDouble(otherSuperReal.staticMethod(1));
+
+        vm.privateMethod();
     }
 
-    private static long staticMethod(long a) {
-        nativeLong(a);
+    public static double staticMethod(double a) {
+        nativeInt(1);
+        nativeDouble(a);
         a = a * 2;
+        return a;
+    }
+
+    public long virtualMethod(long a) {
+        nativeInt(100);
+        a = super.virtualMethod(a + 10);
+        nativeInt(300);
         nativeLong(a);
         return a;
+    }
+
+    private void privateMethod() {
+        nativeInt(42);
     }
 
     private static void add() {

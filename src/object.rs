@@ -124,6 +124,8 @@ impl InstanceObject {
         self.data[offset + 1] = val[1];
         Ok(())
     }
+
+    pub fn class(&self) -> &str { &self.class }
 }
 
 #[cfg(test)]

@@ -5,6 +5,8 @@ class TestClassSuper {
     private long c;
     private byte d;
     private static long sl;
+
+    public void virtualMethod() {}
 }
 
 public class TestClass extends TestClassSuper {
@@ -16,4 +18,5 @@ public class TestClass extends TestClassSuper {
     private double d;
     private double[] e;
     private static short c;
+    public void virtualMethod() {}
 }

@@ -4,7 +4,7 @@ use instruction::{Instruction, LocalVarRef};
 use instruction::Instruction::*;
 use instruction::Type::*;
 use parsed_class::MethodRef;
-use descriptor::FieldDescriptor;
+use descriptor::{FieldDescriptor, MethodDescriptor};
 use object::{Object, ArrayObject, InstanceObject};
 use class::Class;
 use std::mem;
@@ -447,6 +447,9 @@ impl VM {
                     let val = frame.top();
                     frame.push(val);
                 }
+                POP => {
+                    frame.pop();
+                }
 
                 GETFIELD(field) => {
                     let objindex = frame.pop();
@@ -554,10 +557,31 @@ impl VM {
                        method.name() != "<init>" &&
                        Class::is_real_super_class(method.class(), &frame.current_class, &mut self.classloader)
                         .unwrap() {
-                        panic!("special lookup procedure for invoke special not implemented, MethodRef: {:?}",
-                               method);
+                        let dest_class = Class::find_first_real_super_class_with_method(&frame.current_class,
+                                                                                        method.name(),
+                                                                                        method.descriptor(),
+                                                                                        &mut self.classloader)
+                            .unwrap()
+                            .unwrap();
+                        self.invoke_method(&dest_class, method.name(), method.descriptor(), &mut frame);
+                    } else {
+                        self.invoke_method_ref(&method, &mut frame);
                     }
-                    self.invoke_method_ref(&method, &mut frame);
+                }
+                INVOKEVIRTUAL(method) => {
+                    let dest_class;
+                    {
+                        let object_offset = MethodDescriptor::parse(method.descriptor()).unwrap().words_for_params();
+                        // TODO throw null pointer exception
+                        let object = VM::get_instance(&mut self.heap, frame.nth_from_top(object_offset));
+                        dest_class = Class::find_first_super_class_with_method(object.class(),
+                                                                               method.name(),
+                                                                               method.descriptor(),
+                                                                               &mut self.classloader)
+                            .unwrap()
+                            .unwrap();
+                    }
+                    self.invoke_method(&dest_class, method.name(), method.descriptor(), &mut frame);
                 }
                 INVOKESTATIC(method) => {
                     self.invoke_method_ref(&method, &mut frame);
@@ -693,9 +717,69 @@ mod tests {
     fn simple() { run("simple", vec![("nativeInt", vec![1])]); }
 
     #[test]
-    fn staticcall() {
-        run("staticcall",
-            vec![("nativeLong", arg2!(1i64)), ("nativeLong", arg2!(2i64)), ("nativeLong", arg2!(2i64))]);
+    fn invoke() {
+        run("invoke",
+            vec![("nativeInt", arg1!(100)),
+                 ("nativeInt", arg1!(200)),
+                 ("nativeLong", arg2!(11i64)),
+                 ("nativeInt", arg1!(300)),
+                 ("nativeLong", arg2!(111i64)),
+                 ("nativeLong", arg2!(111i64)),
+
+                 ("nativeInt", arg1!(100)),
+                 ("nativeInt", arg1!(200)),
+                 ("nativeLong", arg2!(11i64)),
+                 ("nativeInt", arg1!(300)),
+                 ("nativeLong", arg2!(111i64)),
+                 ("nativeLong", arg2!(111i64)),
+
+                 ("nativeInt", arg1!(200)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(101i64)),
+
+                 ("nativeInt", arg1!(1000)),
+                 ("nativeInt", arg1!(2000)),
+                 ("nativeLong", arg2!(11i64)),
+                 ("nativeInt", arg1!(3000)),
+                 ("nativeLong", arg2!(111i64)),
+                 ("nativeLong", arg2!(111i64)),
+
+                 ("nativeInt", arg1!(1000)),
+                 ("nativeInt", arg1!(2000)),
+                 ("nativeLong", arg2!(11i64)),
+                 ("nativeInt", arg1!(3000)),
+                 ("nativeLong", arg2!(111i64)),
+                 ("nativeLong", arg2!(111i64)),
+
+                 ("nativeInt", arg1!(2000)),
+                 ("nativeLong", arg2!(1i64)),
+                 ("nativeLong", arg2!(101i64)),
+
+                 ("nativeInt", arg1!(1)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(2f64)),
+
+                 ("nativeInt", arg1!(2)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(3f64)),
+
+                 ("nativeInt", arg1!(2)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(3f64)),
+
+                 ("nativeInt", arg1!(4)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(5f64)),
+
+                 ("nativeInt", arg1!(3)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(4f64)),
+
+                 ("nativeInt", arg1!(3)),
+                 ("nativeDouble", arg2!(1f64)),
+                 ("nativeDouble", arg2!(4f64)),
+
+                 ("nativeInt", arg1!(42))]);
     }
 
     #[test]

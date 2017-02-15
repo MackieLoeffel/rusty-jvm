@@ -88,6 +88,9 @@ impl Class {
         self.methods.iter().find(|m| m.name() == name && m.descriptor() == descriptor)
     }
 
+    // we can't extract the iterating part from these methods, because streaming
+    // iterators are not possible with the curent Iterator interface
+    // ses https://www.reddit.com/r/rust/comments/303a09/looking_for_more_information_on_streaming/
     pub fn get_instance_size(classname: &str, classloader: &mut ClassLoader) -> Result<usize, ClassLoadingError> {
         let mut cur_name = classname.to_owned();
         let mut sum = 0;
@@ -156,6 +159,39 @@ impl Class {
             if cur_name == superclass {
                 return Ok(true);
             }
+        }
+    }
+
+    pub fn find_first_real_super_class_with_method(classname: &str,
+                                                   name: &str,
+                                                   descriptor: &str,
+                                                   classloader: &mut ClassLoader)
+                                                   -> Result<Option<String>, ClassLoadingError> {
+        let super_name;
+        {
+            let class = classloader.load_class(classname)?;
+            super_name = match class.super_class() {
+                Some(c) => c.to_owned(),
+                None => return Ok(None),
+            }
+        }
+        Class::find_first_super_class_with_method(&super_name, name, descriptor, classloader)
+    }
+    pub fn find_first_super_class_with_method(class: &str,
+                                              name: &str,
+                                              descriptor: &str,
+                                              classloader: &mut ClassLoader)
+                                              -> Result<Option<String>, ClassLoadingError> {
+        let mut cur_name = class.to_owned();
+        loop {
+            let class = classloader.load_class(&cur_name)?;
+            if class.method_by_signature(name, descriptor).is_some() {
+                return Ok(Some(cur_name));
+            }
+            cur_name = match class.super_class() {
+                Some(c) => c.to_owned(),
+                None => return Ok(None),
+            };
         }
     }
 
@@ -301,7 +337,7 @@ mod tests {
     #[test]
     fn method_init() {
         let class = get_class();
-        assert_eq!(class.methods.len(), 2);
+        assert_eq!(class.methods.len(), 3);
         let method = &class.methods[0];
         assert_eq!(method.name(), "<init>");
         assert_eq!(method.descriptor(), "()V");
@@ -404,4 +440,30 @@ mod tests {
         assert_eq!(Class::get_instance_size("com/mackie/rustyjvm/TestClass", &mut classloader).unwrap(),
                    8);
     }
+
+    #[test]
+    fn find_methods() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        assert_eq!(Class::find_first_super_class_with_method("com/mackie/rustyjvm/TestClass",
+                                                             "virtualMethod",
+                                                             "()V",
+                                                             &mut classloader)
+                       .unwrap(),
+                   Some("com/mackie/rustyjvm/TestClass".to_owned()));
+        assert_eq!(Class::find_first_real_super_class_with_method("com/mackie/rustyjvm/TestClass",
+                                                                  "virtualMethod",
+                                                                  "()V",
+                                                                  &mut classloader)
+                       .unwrap(),
+                   Some("com/mackie/rustyjvm/TestClassSuper".to_owned()));
+        assert_eq!(Class::find_first_super_class_with_method("com/mackie/rustyjvm/TestClass",
+                                                             "virtualMethod",
+                                                             "(I)V",
+                                                             &mut classloader)
+                       .unwrap(),
+                   None);
+
+
+    }
+
 }
