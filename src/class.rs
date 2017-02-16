@@ -195,6 +195,11 @@ impl Class {
         }
     }
 
+    pub fn is_instance_of(class: &FieldDescriptor, dest: &FieldDescriptor, classloader: &mut ClassLoader) -> Result<bool, ClassLoadingError> {
+        // see logic at https://docs.oracle.com/javase/specs/jvms/se6/html/Instructions2.doc6.html under instanceof
+        unimplemented!();
+    }
+
     pub fn name(&self) -> &str { &self.name }
     #[allow(dead_code)]
     pub fn methods(&self) -> &Vec<Method> { &self.methods }

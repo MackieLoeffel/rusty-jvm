@@ -141,7 +141,6 @@ impl VM {
         (self.heap.len() - 1) as i32
     }
     fn get_object(heap: &mut Vec<Option<Object>>, index: i32) -> &mut Object {
-
         heap[index as usize].as_mut().expect("Invalid Reference")
     }
 
@@ -222,10 +221,6 @@ impl VM {
                         frame.push(self.get_array(array).get(index));
                     }
                 }
-                ARRAYLENGTH => {
-                    let array = frame.pop();
-                    frame.push(self.get_array(array).length());
-                }
 
                 STORE(typ, idx) => {
                     if typ.is_double_sized() {
@@ -247,30 +242,53 @@ impl VM {
                     }
                 }
 
-                ANEWARRAY(_) => {
+                ARRAYLENGTH => {
+                    let array = frame.pop();
+                    frame.push(self.get_array(array).length());
+                }
+
+                CHECKCAST(dest) => {
+                    let objindex = frame.top();
+                    // nullpointer is always ok
+                    if objindex != 0 {
+                        let obj = VM::get_object(&mut self.heap, objindex);
+                        if !Class::is_instance_of(obj.typ(), &FieldDescriptor::from_symbolic_reference(&dest).unwrap(), &mut self.classloader).unwrap() {
+                            panic!("TODO ClassCastException!");
+                        }
+                    }
+                }
+                INSTANCEOF(dest) => {
+                    let objindex = frame.pop();
+                    // nullpointer is always false
+                    frame.push(if objindex == 0 {
+                        0
+                    } else {
+                        let obj = VM::get_object(&mut self.heap, objindex);
+                        Class::is_instance_of(obj.typ(), &FieldDescriptor::from_symbolic_reference(&dest).unwrap(), &mut self.classloader).unwrap() as i32
+                    });
+                }
+
+                ANEWARRAY(class) => {
                     let length = frame.pop();
                     // TODO throw NegativeArraySizeException exception
-                    frame.push(self.allocate_object(Object::new_array(length, Reference)));
+                    frame.push(self.allocate_object(Object::new_array(length, FieldDescriptor::parse(&class).unwrap())));
                 }
                 MULTIANEWARRAY(descriptor, count) => {
                     fn create_array(depth: usize,
                                     count: usize,
-                                    desc: &FieldDescriptor,
+                                    mut desc: FieldDescriptor,
                                     frame: &mut Frame,
                                     vm: &mut VM)
                                     -> i32 {
                         let len = frame.nth_from_top(count - depth);
                         // TODO throw NegativeArraySizeException exception
-                        let typ = if depth == count {
-                            desc.as_type_without_arrays(count)
-                        } else {
-                            Reference
-                        };
-                        let mut array = ArrayObject::new(len, typ);
+
+                        desc.remove_array();
+                        let mut array = ArrayObject::new(len, desc.clone());
 
                         if depth < count {
                             for i in 0..len {
-                                array.set(i, create_array(depth + 1, count, desc, frame, vm));
+                                array.set(i, create_array(depth + 1, count, desc.clone(), frame, vm));
                             }
                         }
                         vm.allocate_object(Object::Array(array))
@@ -278,7 +296,7 @@ impl VM {
 
                     let created = create_array(1,
                                                count as usize,
-                                               &FieldDescriptor::parse(&descriptor).unwrap(),
+                                               FieldDescriptor::parse(&descriptor).unwrap(),
                                                &mut frame,
                                                self);
                     frame.sp -= count as usize;
@@ -295,7 +313,7 @@ impl VM {
                 NEWARRAY(t) => {
                     let length = frame.pop();
                     // TODO throw NegativeArraySizeException exception
-                    frame.push(self.allocate_object(Object::new_array(length, t)));
+                    frame.push(self.allocate_object(Object::new_array(length, FieldDescriptor::from_type_without_reference(t))));
                 }
 
                 CONVERT(Int, Byte) => {

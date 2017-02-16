@@ -24,7 +24,7 @@ impl FieldRef {
     #[allow(dead_code)]
     pub fn new(name: &str, class: &str, descriptor: &str) -> Result<FieldRef, String> {
         let typ = match FieldDescriptor::parse(descriptor) {
-            Some(d) => d.into_simple_typ(),
+            Some(d) => d.simple_typ(),
             None => return Err(format!("Invalid Field Descriptor: {}", descriptor)),
         };
         Ok(FieldRef {

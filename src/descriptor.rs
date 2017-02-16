@@ -1,14 +1,14 @@
 use std::ops::Deref;
 use instruction::Type;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FieldDescriptor {
     num_array: usize,
     typ: FieldDescriptorType,
     simple_typ: Type,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FieldDescriptorType {
     Byte,
     Char,
@@ -93,12 +93,74 @@ impl FieldDescriptor {
         fd_eof(desc).to_result().ok()
     }
 
+    pub fn add_array(&mut self) {
+        self.num_array += 1;
+        self.update_simple_typ();
+    }
+    pub fn remove_array(&mut self) {
+        assert!(self.num_array > 0);
+        self.num_array -= 1;
+        self.update_simple_typ();
+    }
+
+    // TODO remove
+    #[allow(dead_code)]
     pub fn as_type_without_arrays(&self, num_less_arrays: usize) -> Type {
         assert!(num_less_arrays <= self.num_array);
         as_type(&self.typ, self.num_array - num_less_arrays)
     }
 
-    pub fn into_simple_typ(self) -> Type { self.simple_typ }
+    pub fn simple_typ(&self) -> Type { self.simple_typ }
+    pub fn num_array(&self) -> usize { self.num_array }
+
+    pub fn get_class(&self) -> Option<&str> {
+        if self.num_array > 0 {
+            return None;
+        }
+        match self.typ {
+            FieldDescriptorType::Reference(ref s) => Some(s),
+            _ => None
+        }
+    }
+
+    pub fn from_class(class: &str) -> FieldDescriptor {
+        FieldDescriptor {
+            num_array: 0,
+            simple_typ: Type::Reference,
+            typ: FieldDescriptorType::Reference(class.to_owned()),
+        }
+    }
+
+    pub fn from_type_without_reference(typ: Type) -> FieldDescriptor {
+        FieldDescriptor {
+            num_array: 0,
+            simple_typ: typ,
+            typ: match typ {
+                Type::Byte => FieldDescriptorType::Byte,
+                Type::Char => FieldDescriptorType::Char,
+                Type::Double => FieldDescriptorType::Double,
+                Type::Float => FieldDescriptorType::Float,
+                Type::Int => FieldDescriptorType::Int,
+                Type::Long => FieldDescriptorType::Long,
+                Type::Short => FieldDescriptorType::Short,
+                Type::Boolean => FieldDescriptorType::Boolean,
+                Type::Reference => panic!("reference cannot be converted to fieldDescriptor!"),
+            },
+        }
+    }
+
+    /// for references in ClassInfo structures
+    /// see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#1221
+    /// can be a classname or an array type
+    pub fn from_symbolic_reference(name: &str) -> Option<FieldDescriptor> {
+        if name.starts_with('[') {
+            FieldDescriptor::parse(name)
+        } else {
+            Some(FieldDescriptor::from_class(name))
+        }
+    }
+
+    fn update_simple_typ(&mut self) { self.simple_typ = as_type(&self.typ, self.num_array); }
 }
 
 impl Deref for FieldDescriptor {
@@ -222,6 +284,14 @@ mod tests {
     }
 
     #[test]
+    fn field_from_symolic_reference() {
+        assert_eq!(FieldDescriptor::from_symbolic_reference("[Ljava/lang/Object;"),
+                   fd(Reference("java/lang/Object".to_owned()), 1));
+        assert_eq!(FieldDescriptor::from_symbolic_reference("java/lang/Object"),
+                   fd(Reference("java/lang/Object".to_owned()), 0));
+    }
+
+    #[test]
     fn method_empty() {
         assert_eq!(MethodDescriptor::parse("()V"), md(vec![], None));
     }
@@ -248,5 +318,32 @@ mod tests {
     fn method_words() {
         assert_eq!(MethodDescriptor::parse("(S[DJ)I").unwrap().words_for_params(),
                    4);
+    }
+
+    #[test]
+    fn add_array() {
+        let mut desc = FieldDescriptor::parse("J").unwrap();
+        assert_eq!(desc.simple_typ(), Type::Long);
+        assert_eq!(desc.num_array(), 0);
+        desc.add_array();
+        assert_eq!(desc.simple_typ(), Type::Reference);
+        assert_eq!(desc.num_array(), 1);
+    }
+
+    #[test]
+    fn remove_array() {
+        let mut desc = FieldDescriptor::parse("[J").unwrap();
+        assert_eq!(desc.simple_typ(), Type::Reference);
+        assert_eq!(desc.num_array(), 1);
+        desc.remove_array();
+        assert_eq!(desc.simple_typ(), Type::Long);
+        assert_eq!(desc.num_array(), 0);
+    }
+
+    #[test]
+    fn get_class() {
+        assert_eq!(FieldDescriptor::parse("J").unwrap().get_class(), None);
+        assert_eq!(FieldDescriptor::parse("[LA;").unwrap().get_class(), None);
+        assert_eq!(FieldDescriptor::parse("LA;").unwrap().get_class(), Some("A"));
     }
 }

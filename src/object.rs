@@ -1,31 +1,31 @@
 use class_loader::ClassLoader;
-use instruction::Type;
 use errors::ClassLoadingError;
 use class::Class;
 use parsed_class::FieldRef;
+use descriptor::FieldDescriptor;
 
 #[derive(Debug)]
 pub enum Object {
     Array(ArrayObject),
-    #[allow(dead_code)]
     Instance(InstanceObject),
 }
 
 #[derive(Debug)]
 pub struct ArrayObject {
     length: i32,
-    content_needs_two_words: bool,
     data: Box<[i32]>,
+    typ: FieldDescriptor,
+    content_needs_two_words: bool,
 }
 
 #[derive(Debug)]
 pub struct InstanceObject {
-    class: String,
+    typ: FieldDescriptor,
     data: Box<[i32]>,
 }
 
 impl Object {
-    pub fn new_array(length: i32, typ: Type) -> Object { Object::Array(ArrayObject::new(length, typ)) }
+    pub fn new_array(length: i32, typ: FieldDescriptor) -> Object { Object::Array(ArrayObject::new(length, typ)) }
 
     pub fn new_instance(class: &str, class_loader: &mut ClassLoader) -> Result<Object, ClassLoadingError> {
         Ok(Object::Instance(InstanceObject::new(class, class_loader)?))
@@ -45,22 +45,34 @@ impl Object {
             _ => panic!("expected array"),
         }
     }
+
+    pub fn typ(&self) -> &FieldDescriptor {
+        match *self {
+            Object::Array(ref a) => a.typ(),
+            Object::Instance(ref a) => a.typ(),
+        }
+    }
 }
 
 impl ArrayObject {
-    pub fn new(length: i32, typ: Type) -> ArrayObject {
+    pub fn new(length: i32, mut typ: FieldDescriptor) -> ArrayObject {
         let cap = (length as usize) * typ.word_size();
         let mut data = Vec::with_capacity(cap);
         data.resize(cap, 0);
 
+        let content_needs_two_words = typ.is_double_sized();
+        typ.add_array();
+
         ArrayObject {
             length: length,
-            content_needs_two_words: typ.is_double_sized(),
+            content_needs_two_words: content_needs_two_words,
+            typ: typ,
             data: data.into_boxed_slice(),
         }
     }
 
     pub fn length(&self) -> i32 { self.length }
+    pub fn typ(&self) -> &FieldDescriptor { &self.typ }
 
     pub fn get(&self, index: i32) -> i32 {
         assert!(!self.content_needs_two_words);
@@ -88,10 +100,12 @@ impl InstanceObject {
         let mut data = Vec::with_capacity(len);
         data.resize(len, 0);
         Ok(InstanceObject {
-            class: classname.to_owned(),
+            typ: FieldDescriptor::from_class(classname),
             data: data.into_boxed_slice(),
         })
     }
+
+    pub fn typ(&self) -> &FieldDescriptor { &self.typ }
 
     pub fn get_field(&self, fieldref: &FieldRef, classloader: &mut ClassLoader) -> Result<i32, ClassLoadingError> {
         Ok(self.data[Class::get_field_offset(fieldref, classloader)?])
@@ -125,16 +139,17 @@ impl InstanceObject {
         Ok(())
     }
 
-    pub fn class(&self) -> &str { &self.class }
+    pub fn class(&self) -> &str { self.typ.get_class().unwrap() }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use instruction::Type;
 
     #[test]
     fn array() {
-        let mut array = ArrayObject::new(3, Type::Long);
+        let mut array = ArrayObject::new(3, FieldDescriptor::from_type_without_reference(Type::Long));
         array.set2(0, [1, 2]);
         array.set2(1, [3, 4]);
         assert_eq!(array.get2(0), [1, 2]);
