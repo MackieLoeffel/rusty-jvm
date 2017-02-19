@@ -12,11 +12,16 @@ use errors::ClassLoadingError;
 // see https://docs.oracle.com/javase/specs/jvms/se6/html/ClassFile.doc.html#40222
 pub const MAX_INSTRUCTIONS_PER_METHOD: usize = 65536;
 pub const OBJECT_NAME: &'static str = "java/lang/Object";
+// interfaces, which an array implements:
+// https://docs.oracle.com/javase/specs/jvms/se6/html/Concepts.doc.html#16446
+pub const SERIALIZABLE_NAME: &'static str = "java/io/Serializable";
+pub const CLONEABLE_NAME: &'static str = "java/lang/Cloneable";
 
 #[derive(Debug)]
 pub struct Class {
     name: String,
     super_class: Option<String>,
+    interfaces: Vec<String>,
     access_flags: ClassAccessFlags,
     methods: Vec<Method>,
     static_fields: Vec<Field>,
@@ -59,8 +64,20 @@ impl Class {
             }
             None
         } else {
-            Some(parsed.constant_class(parsed.super_class)?.to_owned())
+            if parsed.super_class == 0 {
+                return Err("Non-Object-Class must have a superclass".to_owned());
+            }
+            let super_class_name = parsed.constant_class(parsed.super_class)?.to_owned();
+            if parsed.access_flags.contains(classfile_parser::INTERFACE) && super_class_name != OBJECT_NAME {
+                return Err("Interfaces must have Object as Superclass".to_owned());
+            }
+            Some(super_class_name)
         };
+
+        let interfaces = parsed.interfaces
+            .iter()
+            .map(|index| parsed.constant_class(*index).map(|s| s.to_owned()))
+            .collect::<Result<Vec<String>, String>>()?;
 
         let methods = parsed.methods
             .iter()
@@ -77,6 +94,7 @@ impl Class {
         Ok(Class {
             name: name.to_owned(),
             super_class: super_class,
+            interfaces: interfaces,
             access_flags: parsed.access_flags,
             methods: methods,
             instance_fields: instance_fields,
@@ -195,9 +213,70 @@ impl Class {
         }
     }
 
-    pub fn is_instance_of(class: &FieldDescriptor, dest: &FieldDescriptor, classloader: &mut ClassLoader) -> Result<bool, ClassLoadingError> {
+    pub fn is_instance_of(class: &FieldDescriptor,
+                          mut dest: FieldDescriptor,
+                          classloader: &mut ClassLoader)
+                          -> Result<bool, ClassLoadingError> {
         // see logic at https://docs.oracle.com/javase/specs/jvms/se6/html/Instructions2.doc6.html under instanceof
-        unimplemented!();
+        if class.is_array() {
+            if dest.is_array() {
+                let mut new_class = class.clone();
+                new_class.remove_array();
+                dest.remove_array();
+                if new_class.simple_typ() == Type::Reference {
+                    Class::is_instance_of(&new_class, dest, classloader)
+                } else {
+                    Ok(new_class.simple_typ() == dest.simple_typ())
+                }
+            } else {
+                let dest_class = match dest.get_class() {
+                    Some(s) => s,
+                    None => return Ok(false),
+                };
+                Ok(dest_class == OBJECT_NAME || dest_class == CLONEABLE_NAME || dest_class == SERIALIZABLE_NAME)
+            }
+        } else {
+            // interfaces have object as superclass, so we can merge the interface and class cases
+            let class_name = class.get_class().expect("is_instance_of must be called with references (class)");
+            let dest_name = dest.get_class().expect("is_instance_of must be called with references (dest)");
+            if class_name == dest_name {
+                return Ok(true);
+            }
+            if Class::has_interface_or_superclass(class_name, dest_name, classloader)? {
+                return Ok(true);
+            }
+            Ok(false)
+        }
+    }
+
+    pub fn has_interface_or_superclass(class: &str,
+                                       super_name: &str,
+                                       classloader: &mut ClassLoader)
+                                       -> Result<bool, ClassLoadingError> {
+        if class == super_name {
+            return Ok(true);
+        }
+
+        let mut interfaces;
+        {
+            let loaded_class = classloader.load_class(class)?;
+            interfaces = loaded_class.interfaces.clone();
+            if let Some(s) = loaded_class.super_class() {
+                interfaces.push(s.to_owned());
+            }
+        }
+
+        while !interfaces.is_empty() {
+            let interface = classloader.load_class(&interfaces.pop().unwrap())?;
+            if interface.name() == super_name {
+                return Ok(true);
+            }
+            interfaces.extend(interface.interfaces.clone());
+            if let Some(s) = interface.super_class() {
+                interfaces.push(s.to_owned());
+            }
+        }
+        Ok(false)
     }
 
     pub fn name(&self) -> &str { &self.name }
@@ -471,4 +550,116 @@ mod tests {
 
     }
 
+    #[test]
+    fn instance_of() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        macro_rules! check(
+            ($class: expr, $dest: expr, $val: expr) => {{
+                assert_eq!(Class::is_instance_of(&FieldDescriptor::parse($class).unwrap(),
+                                                 FieldDescriptor::parse($dest).unwrap(),
+                                                 &mut classloader).unwrap(), $val);
+            }});
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Lcom/mackie/rustyjvm/TestClass;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Lcom/mackie/rustyjvm/TestClassSuper;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Ljava/lang/Object;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClassSuper;",
+               "Lcom/mackie/rustyjvm/TestClass;",
+               false);
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceB;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClass;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceC;",
+               false);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceB;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceC;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceC;",
+               false);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               "Ljava/lang/Object;",
+               true);
+        check!("Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               "Lcom/mackie/rustyjvm/TestClass;",
+               false);
+        check!("[Lcom/mackie/rustyjvm/TestClassSuper;",
+               "Ljava/lang/Object;",
+               true);
+        check!("[Lcom/mackie/rustyjvm/TestClassSuper;",
+               "Lcom/mackie/rustyjvm/TestClass;",
+               false);
+        check!("[Lcom/mackie/rustyjvm/TestClassSuper;",
+               "[Lcom/mackie/rustyjvm/TestClassSuper;",
+               true);
+        check!("[Lcom/mackie/rustyjvm/TestClassSuper;",
+               "[Ljava/lang/Object;",
+               true);
+        check!("[[[I", "[[[I", true);
+        check!("[[[I", "[[I", false);
+        check!("[[[I", "[[[D", false);
+        check!("[[[I", "Ljava/lang/Cloneable;", true);
+        check!("[[[I", "Ljava/io/Serializable;", true);
+        check!("[Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               "Lcom/mackie/rustyjvm/TestClassInterfaceA;",
+               false);
+    }
+
+    #[test]
+    fn has_interface() {
+        let mut classloader = ClassLoader::new(super::super::CLASSFILE_DIR);
+        macro_rules! check(
+            ($interface: expr, $class: expr, $val: expr) => {{
+                assert_eq!(Class::has_interface_or_superclass($interface, $class,
+                                                              &mut classloader).unwrap(),
+                           $val);
+            }});
+
+        check!("com/mackie/rustyjvm/TestClass",
+               "com/mackie/rustyjvm/TestClassInterfaceA",
+               true);
+        check!("com/mackie/rustyjvm/TestClass",
+               "com/mackie/rustyjvm/TestClassInterfaceB",
+               true);
+        check!("com/mackie/rustyjvm/TestClass",
+               "com/mackie/rustyjvm/TestClassInterfaceC",
+               false);
+        check!("com/mackie/rustyjvm/TestClass", "java/lang/Object", true);
+        check!("com/mackie/rustyjvm/TestClassSuper",
+               "com/mackie/rustyjvm/TestClass",
+               false);
+        check!("com/mackie/rustyjvm/TestClassInterfaceA",
+               "com/mackie/rustyjvm/TestClassInterfaceA",
+               true);
+        check!("com/mackie/rustyjvm/TestClassInterfaceB",
+               "com/mackie/rustyjvm/TestClassInterfaceA",
+               true);
+        check!("com/mackie/rustyjvm/TestClassInterfaceC",
+               "com/mackie/rustyjvm/TestClassInterfaceA",
+               true);
+        check!("com/mackie/rustyjvm/TestClassInterfaceA",
+               "com/mackie/rustyjvm/TestClassInterfaceC",
+               false);
+        check!("com/mackie/rustyjvm/TestClassInterfaceA",
+               "java/lang/Object",
+               true);
+        check!("com/mackie/rustyjvm/TestClassInterfaceA",
+               "com/mackie/rustyjvm/TestClass",
+               false);
+    }
 }

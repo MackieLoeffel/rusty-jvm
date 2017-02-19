@@ -111,7 +111,7 @@ impl FieldDescriptor {
     }
 
     pub fn simple_typ(&self) -> Type { self.simple_typ }
-    pub fn num_array(&self) -> usize { self.num_array }
+    pub fn is_array(&self) -> bool { self.num_array > 0 }
 
     pub fn get_class(&self) -> Option<&str> {
         if self.num_array > 0 {
@@ -119,7 +119,7 @@ impl FieldDescriptor {
         }
         match self.typ {
             FieldDescriptorType::Reference(ref s) => Some(s),
-            _ => None
+            _ => None,
         }
     }
 
@@ -289,6 +289,7 @@ mod tests {
                    fd(Reference("java/lang/Object".to_owned()), 1));
         assert_eq!(FieldDescriptor::from_symbolic_reference("java/lang/Object"),
                    fd(Reference("java/lang/Object".to_owned()), 0));
+        assert_eq!(FieldDescriptor::from_symbolic_reference("[I"), fd(Int, 1));
     }
 
     #[test]
@@ -324,26 +325,27 @@ mod tests {
     fn add_array() {
         let mut desc = FieldDescriptor::parse("J").unwrap();
         assert_eq!(desc.simple_typ(), Type::Long);
-        assert_eq!(desc.num_array(), 0);
+        assert_eq!(desc.num_array, 0);
         desc.add_array();
         assert_eq!(desc.simple_typ(), Type::Reference);
-        assert_eq!(desc.num_array(), 1);
+        assert_eq!(desc.num_array, 1);
     }
 
     #[test]
     fn remove_array() {
         let mut desc = FieldDescriptor::parse("[J").unwrap();
         assert_eq!(desc.simple_typ(), Type::Reference);
-        assert_eq!(desc.num_array(), 1);
+        assert_eq!(desc.num_array, 1);
         desc.remove_array();
         assert_eq!(desc.simple_typ(), Type::Long);
-        assert_eq!(desc.num_array(), 0);
+        assert_eq!(desc.num_array, 0);
     }
 
     #[test]
     fn get_class() {
         assert_eq!(FieldDescriptor::parse("J").unwrap().get_class(), None);
         assert_eq!(FieldDescriptor::parse("[LA;").unwrap().get_class(), None);
-        assert_eq!(FieldDescriptor::parse("LA;").unwrap().get_class(), Some("A"));
+        assert_eq!(FieldDescriptor::parse("LA;").unwrap().get_class(),
+                   Some("A"));
     }
 }

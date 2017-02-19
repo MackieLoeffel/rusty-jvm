@@ -252,7 +252,10 @@ impl VM {
                     // nullpointer is always ok
                     if objindex != 0 {
                         let obj = VM::get_object(&mut self.heap, objindex);
-                        if !Class::is_instance_of(obj.typ(), &FieldDescriptor::from_symbolic_reference(&dest).unwrap(), &mut self.classloader).unwrap() {
+                        if !Class::is_instance_of(obj.typ(),
+                                                  FieldDescriptor::from_symbolic_reference(&dest).unwrap(),
+                                                  &mut self.classloader)
+                            .unwrap() {
                             panic!("TODO ClassCastException!");
                         }
                     }
@@ -264,14 +267,18 @@ impl VM {
                         0
                     } else {
                         let obj = VM::get_object(&mut self.heap, objindex);
-                        Class::is_instance_of(obj.typ(), &FieldDescriptor::from_symbolic_reference(&dest).unwrap(), &mut self.classloader).unwrap() as i32
+                        Class::is_instance_of(obj.typ(),
+                                              FieldDescriptor::from_symbolic_reference(&dest).unwrap(),
+                                              &mut self.classloader)
+                            .unwrap() as i32
                     });
                 }
 
                 ANEWARRAY(class) => {
                     let length = frame.pop();
                     // TODO throw NegativeArraySizeException exception
-                    frame.push(self.allocate_object(Object::new_array(length, FieldDescriptor::parse(&class).unwrap())));
+                    frame.push(self.allocate_object(Object::new_array(length,
+                                                           FieldDescriptor::from_symbolic_reference(&class).unwrap())));
                 }
                 MULTIANEWARRAY(descriptor, count) => {
                     fn create_array(depth: usize,
@@ -313,7 +320,8 @@ impl VM {
                 NEWARRAY(t) => {
                     let length = frame.pop();
                     // TODO throw NegativeArraySizeException exception
-                    frame.push(self.allocate_object(Object::new_array(length, FieldDescriptor::from_type_without_reference(t))));
+                    frame.push(self.allocate_object(Object::new_array(length,
+                                                                     FieldDescriptor::from_type_without_reference(t))));
                 }
 
                 CONVERT(Int, Byte) => {
@@ -798,6 +806,62 @@ mod tests {
                  ("nativeDouble", arg2!(4f64)),
 
                  ("nativeInt", arg1!(42))]);
+    }
+
+    #[test]
+    fn castinstanceof() {
+        run("castinstanceof",
+            vec![("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+                 ("nativeBoolean", arg1!(0)),
+
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0)),
+
+                 ("nativeBoolean", arg1!(1)),
+                 ("nativeBoolean", arg1!(0))]);
     }
 
     #[test]

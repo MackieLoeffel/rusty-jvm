@@ -1,6 +1,11 @@
 package com.mackie.rustyjvm;
 
-class TestVMSuper {
+interface TestVMInterfaceA {}
+interface TestVMInterfaceB extends TestVMInterfaceA {}
+interface TestVMInterfaceC extends TestVMInterfaceA {}
+interface TestVMInterfaceD extends TestVMInterfaceB, TestVMInterfaceC {}
+
+class TestVMSuper implements TestVMInterfaceA {
     protected long superLong;
     protected int superInt;
     public TestVMSuper(int intv) {
@@ -24,7 +29,7 @@ class TestVMSuper {
     }
 }
 
-class TestVMOtherSuper {
+class TestVMOtherSuper implements TestVMInterfaceB {
     public long virtualMethod(long a) {
         TestVM.nativeInt(2000);
         TestVM.nativeLong(a);
@@ -55,7 +60,7 @@ class TestVMOther extends TestVMOtherSuper {
     }
 }
 
-public class TestVM extends TestVMSuper {
+public class TestVM extends TestVMSuper implements TestVMInterfaceD {
     public static native void nativeBoolean(boolean i);
     public static native void nativeChar(char i);
     public static native void nativeByte(byte i);
@@ -112,6 +117,69 @@ public class TestVM extends TestVMSuper {
 
     private void privateMethod() {
         nativeInt(42);
+    }
+
+    private static void castinstanceof() {
+        Object vm = new TestVM(1, 1);
+        Object vmSuperReal = new TestVMSuper(2);
+        Object other = new TestVMOther();
+        Object nullObject = null;
+        Object array = new TestVMSuper[0];
+        Object intArray = new int[2];
+
+        nativeBoolean(vm instanceof TestVM);
+        nativeBoolean(vm instanceof TestVMSuper);
+        nativeBoolean(vm instanceof TestVMOther);
+        nativeBoolean(vm instanceof Object);
+        nativeBoolean(vm instanceof TestVMInterfaceA);
+        nativeBoolean(vm instanceof TestVMInterfaceB);
+        nativeBoolean(vm instanceof TestVMInterfaceC);
+        nativeBoolean(vm instanceof TestVMInterfaceD);
+
+        nativeBoolean(vmSuperReal instanceof TestVM);
+        nativeBoolean(vmSuperReal instanceof TestVMSuper);
+        nativeBoolean(vmSuperReal instanceof TestVMOther);
+        nativeBoolean(vmSuperReal instanceof Object);
+        nativeBoolean(vmSuperReal instanceof TestVMInterfaceA);
+        nativeBoolean(vmSuperReal instanceof TestVMInterfaceB);
+        nativeBoolean(vmSuperReal instanceof TestVMInterfaceC);
+        nativeBoolean(vmSuperReal instanceof TestVMInterfaceD);
+
+        nativeBoolean(other instanceof TestVMOther);
+        nativeBoolean(other instanceof Object);
+        nativeBoolean(other instanceof TestVMInterfaceA);
+        nativeBoolean(other instanceof TestVMInterfaceB);
+        nativeBoolean(other instanceof TestVMInterfaceC);
+        nativeBoolean(other instanceof TestVMInterfaceD);
+
+        nativeBoolean(nullObject instanceof TestVM);
+        nativeBoolean(nullObject instanceof TestVMSuper);
+        nativeBoolean(nullObject instanceof TestVMOther);
+        nativeBoolean(nullObject instanceof Object);
+        nativeBoolean(nullObject instanceof String);
+        nativeBoolean(nullObject instanceof TestVMInterfaceA);
+        nativeBoolean(nullObject instanceof TestVMInterfaceB);
+        nativeBoolean(nullObject instanceof TestVMInterfaceC);
+        nativeBoolean(nullObject instanceof TestVMInterfaceD);
+
+        nativeBoolean(array instanceof TestVM[]);
+        nativeBoolean(array instanceof TestVMSuper[]);
+        nativeBoolean(array instanceof TestVMOther[]);
+        nativeBoolean(array instanceof Object[]);
+        nativeBoolean(array instanceof String[]);
+        nativeBoolean(array instanceof TestVMInterfaceA[]);
+        nativeBoolean(array instanceof TestVMInterfaceB[]);
+        nativeBoolean(array instanceof TestVMInterfaceC[]);
+        nativeBoolean(array instanceof TestVMInterfaceD[]);
+        nativeBoolean(array instanceof Cloneable);
+        nativeBoolean(array instanceof java.io.Serializable);
+        nativeBoolean(array instanceof TestVMInterfaceA);
+
+        nativeBoolean(intArray instanceof int[]);
+        nativeBoolean(intArray instanceof double[]);
+
+        vmSuperReal = (TestVMSuper) vm;
+        vmSuperReal = (TestVMSuper) null;
     }
 
     private static void add() {

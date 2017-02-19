@@ -16,15 +16,15 @@
      - [-] implement method invocation
        - [X] INVOKESTATIC
        - [ ] INVOKEINTERFACE
-       - [-] INVOKESPECIAL
+       - [X] INVOKESPECIAL
          - [X] implement basics
-         - [ ] implement ACC_SUPER-flag
-       - [ ] INVOKEVIRTUAL
+         - [X] implement ACC_SUPER-flag
+       - [X] INVOKEVIRTUAL
      - [-] implement objects
        - [X] implement object creation
        - [X] implement arrays
        - [ ] implement strings
-     - [ ] implement casts
+     - [X] implement casts
      - [-] implement field access
        - [X] instance fields
        - [ ] static fields
@@ -36,4 +36,6 @@
    - [ ] garbage collection
    - [ ] integrate with GNU Classpath
    - [ ] classfile verification
+     - [ ] handle circular dependencies, inheritance...
+     - [ ] check other stuff
    - [ ] synchronisation

@@ -1,6 +1,10 @@
 package com.mackie.rustyjvm;
 
-class TestClassSuper {
+interface TestClassInterfaceA {}
+interface TestClassInterfaceB extends TestClassInterfaceA {}
+interface TestClassInterfaceC extends TestClassInterfaceB {}
+
+class TestClassSuper implements TestClassInterfaceB {
     private int a;
     private long c;
     private byte d;
